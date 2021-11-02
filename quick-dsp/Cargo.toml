@@ -1,0 +1,19 @@
+[package]
+name = "quick-dsp"
+version = "0.1.0"
+authors = ["Robert Quattlebaum <darco@deepdarc.com>"]
+edition = "2018"
+
+[dependencies]
+log = "0.4"
+pin-utils = "0.1.0-alpha.4"
+futures = {version = "0.3", features=["default", "thread-pool"]}
+circular-queue = "0.2.6"
+num = "0.4"
+#wav = "1.0"
+hex = "0.4"
+crc = "2.1"
+cpal = "0.13"
+anyhow = "1.0"
+async-trait = "0.1"
+stderrlog = "0.5"
