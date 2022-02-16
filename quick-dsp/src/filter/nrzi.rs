@@ -16,18 +16,6 @@ impl NrziEncode {
     }
 }
 
-impl OneToOne<Option<bool>> for NrziEncode {
-    type Output = Option<bool>;
-
-    fn filter(&mut self, sample: Option<bool>) -> Self::Output {
-        if let Some(sample) = sample {
-            Some(OneToOne::<bool>::filter(self, sample))
-        } else {
-            None
-        }
-    }
-}
-
 impl OneToOne<bool> for NrziEncode {
     type Output = bool;
 

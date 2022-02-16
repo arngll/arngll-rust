@@ -3,7 +3,6 @@ use anyhow::{Context as _, Error, Result};
 use cpal::traits::*;
 use cpal::*;
 use futures::channel::mpsc;
-use futures::channel::mpsc::SendError;
 use futures::SinkExt;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -76,31 +75,39 @@ impl Bell202Sender {
 }
 
 impl futures::sink::Sink<Vec<u8>> for Bell202Sender {
-    type Error = SendError;
+    type Error = anyhow::Error;
 
     fn poll_ready(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<std::result::Result<(), Self::Error>> {
-        self.sendframe_sender.poll_ready_unpin(cx)
+        self.sendframe_sender
+            .poll_ready_unpin(cx)
+            .map_err(anyhow::Error::from)
     }
 
     fn start_send(mut self: Pin<&mut Self>, item: Vec<u8>) -> std::result::Result<(), Self::Error> {
-        self.sendframe_sender.start_send_unpin(item)
+        self.sendframe_sender
+            .start_send_unpin(item)
+            .map_err(anyhow::Error::from)
     }
 
     fn poll_flush(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<std::result::Result<(), Self::Error>> {
-        self.sendframe_sender.poll_flush_unpin(cx)
+        self.sendframe_sender
+            .poll_flush_unpin(cx)
+            .map_err(anyhow::Error::from)
     }
 
     fn poll_close(
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<std::result::Result<(), Self::Error>> {
-        self.sendframe_sender.poll_close_unpin(cx)
+        self.sendframe_sender
+            .poll_close_unpin(cx)
+            .map_err(anyhow::Error::from)
     }
 }
 

@@ -31,7 +31,7 @@ pub fn bell_202_decoder(sample_rate: u32) -> impl OneToOne<f32, Output = Option<
 
     Discriminator::<f32, ()>::digital_default()
         .chain(FskDemod::new(space, mark))
-        .chain(BitExtractor::new(sample_rate, BELL202_RATE))
+        .chain(BitSampler::new(sample_rate, BELL202_RATE))
         .chain(NrziDecode::new().optional())
         .chain(HdlcDecode::default())
         // .inspect(|x| {
@@ -60,20 +60,16 @@ where
     let mark_freq = (BELL202_MARK as f32) / (sample_rate as f32);
     let space_freq = (BELL202_SPACE as f32) / (sample_rate as f32);
 
-    let mut nrzi = NrziEncode::new();
-
-    let iter = HdlcEncoderIter::new(iter.bits_lsb()).map(move |x| {
-        if nrzi.filter(x) {
-            mark_freq
-        } else {
-            space_freq
-        }
-    });
-
-    let modulator = FmMod::new(amplitude);
-    let decimator = Decimator::<f32, Out>::default();
-
-    Duplicator::new(modulator.chain(decimator)).wrap_iterator(iter, samples_per_bit)
+    iter.bits_lsb()
+        .hdlc_encode()
+        .nrzi_encode()
+        .resample_nn(samples_per_bit)
+        .map(move |x| match x {
+            true => mark_freq,
+            false => space_freq,
+        })
+        .apply_one_to_one(FmMod::new(amplitude))
+        .apply_one_to_one(Decimator::<f32, Out>::default())
 }
 
 #[cfg(test)]
@@ -109,15 +105,16 @@ mod tests {
     fn test_bell_202_encode_decode_resample() {
         let vec: Vec<u8> = hex::decode("82a0aa646a9ce0ae8270989a8c60ae92888a62406303f03e3230323333377a687474703a2f2f7761386c6d662e636f6d0df782").unwrap();
 
-        let iter = bell_202_encode::<f32, _>(vec.into_iter(), 44100, 0.75);
+        let iter = bell_202_encode::<f32, _>(vec.clone().into_iter(), 44100, 0.75);
 
         let mut decoder = bell_202_decoder(7200);
         let mut resampler = Downsampler::new(44100, 7200);
 
         for x in iter {
             if let Some(x) = resampler.filter(x) {
-                if let Some(_x) = decoder.filter(x) {
-                    println!("decoded: {:?}", hex::encode(_x));
+                if let Some(x) = decoder.filter(x) {
+                    println!("decoded: {:?}", hex::encode(&x));
+                    assert_eq!(vec, x);
                     return;
                 }
             }
