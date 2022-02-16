@@ -69,3 +69,40 @@ impl<T: Real> OneToOne<T> for Downsampler<T> {
         ret
     }
 }
+
+/// Resampling nearest-neighbor iterator
+pub struct ResampleNN<I: Iterator> {
+    inner: I,
+    curr: Option<I::Item>,
+    leftover: f32,
+    scale: f32,
+}
+
+impl<I: Iterator> ResampleNN<I> {
+    pub fn new(inner: I, scale: f32) -> Self {
+        ResampleNN {
+            inner,
+            curr: None,
+            leftover: 0.0,
+            scale,
+        }
+    }
+}
+
+impl<I: Iterator> Iterator for ResampleNN<I>
+where
+    I::Item: Clone,
+{
+    type Item = I::Item;
+    fn next(&mut self) -> Option<Self::Item> {
+        while self.leftover < 1.0 {
+            self.leftover += self.scale;
+            self.curr = self.inner.next();
+            if self.curr.is_none() {
+                break;
+            }
+        }
+        self.leftover -= 1.0;
+        self.curr.clone()
+    }
+}

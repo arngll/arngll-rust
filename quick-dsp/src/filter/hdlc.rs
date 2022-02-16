@@ -243,16 +243,16 @@ impl OneToOne<Option<FrameSignal>> for FrameCollector {
 }
 
 #[derive(Clone, Default, Debug)]
-pub struct BitExtractor {
+pub struct BitSampler {
     sample_rate: u32,
     bit_rate: u32,
     accumulator: u32,
     last_bit: bool,
 }
 
-impl BitExtractor {
-    pub fn new(sample_rate: u32, bit_rate: u32) -> BitExtractor {
-        BitExtractor {
+impl BitSampler {
+    pub fn new(sample_rate: u32, bit_rate: u32) -> BitSampler {
+        BitSampler {
             sample_rate,
             bit_rate,
             ..Default::default()
@@ -260,20 +260,20 @@ impl BitExtractor {
     }
 }
 
-impl Delay for BitExtractor {
+impl Delay for BitSampler {
     fn delay(&self) -> usize {
         0
     }
 }
 
-impl Reset for BitExtractor {
+impl Reset for BitSampler {
     fn reset(&mut self) {
         self.accumulator = 0;
         self.last_bit = false;
     }
 }
 
-impl OneToOne<Option<bool>> for BitExtractor {
+impl OneToOne<Option<bool>> for BitSampler {
     type Output = Option<bool>;
 
     fn filter(&mut self, sample: Option<bool>) -> Self::Output {
@@ -404,7 +404,7 @@ mod tests {
 
     #[test]
     fn bit_extractor_decode() {
-        let mut decode = BitExtractor::new(20, 10);
+        let mut decode = BitSampler::new(20, 10);
 
         assert_eq!(decode.filter(Some(false)), Some(false));
         assert_eq!(decode.filter(Some(false)), None);
@@ -412,7 +412,7 @@ mod tests {
         assert_eq!(decode.filter(Some(false)), None);
         assert_eq!(decode.filter(Some(false)), Some(false));
 
-        let mut decode = BitExtractor::new(30, 10);
+        let mut decode = BitSampler::new(30, 10);
 
         assert_eq!(decode.filter(None), None);
         assert_eq!(decode.filter(None), None);

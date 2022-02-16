@@ -5,7 +5,7 @@ use cpal::traits::*;
 use cpal::*;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::{debug, info, trace};
+use log::{debug, trace};
 use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -123,6 +123,7 @@ impl futures::stream::Stream for Bell202Receiver {
 mod tests {
     use super::*;
     use futures::executor::block_on_stream;
+    use log::info;
 
     #[test]
     #[ignore]

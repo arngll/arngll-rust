@@ -5,7 +5,6 @@ use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
 mod decimator;
 mod discriminator;
-mod downsampler;
 mod fir;
 mod fm_mod;
 mod fsk_demod;
@@ -13,10 +12,10 @@ mod hdlc;
 mod iir;
 mod iter;
 mod nrzi;
+mod resample;
 
 pub use decimator::*;
 pub use discriminator::*;
-pub use downsampler::*;
 pub use fir::*;
 pub use fm_mod::*;
 pub use fsk_demod::*;
@@ -24,6 +23,7 @@ pub use hdlc::*;
 pub use iir::*;
 pub use iter::*;
 pub use nrzi::*;
+pub use resample::*;
 
 #[derive(Copy, Clone, Debug)]
 pub enum Window {
