@@ -1,0 +1,7 @@
+[workspace]
+members = [
+  "quick-dsp",
+  "arngll",
+  "arnglld",
+  "hamaddr",
+]
