@@ -1,0 +1,18 @@
+[package]
+name = "arnglld"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+log = "0.4"
+quick-dsp = { path = "../quick-dsp" }
+arngll = { path = "../arngll" }
+hamaddr = { path = "../hamaddr" }
+structopt = "0.3"
+clap = { version = "3.0.14", features = ["derive"] }
+cpal = "0.13"
+anyhow = "1.0"
+futures = {version = "0.3", features=["default", "thread-pool"]}
+stderrlog = "0.5"
