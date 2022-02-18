@@ -16,3 +16,5 @@ cpal = "0.13"
 anyhow = "1.0"
 futures = {version = "0.3", features=["default", "thread-pool"]}
 stderrlog = "0.5"
+hex = "0.4"
+crc = "2.1"
