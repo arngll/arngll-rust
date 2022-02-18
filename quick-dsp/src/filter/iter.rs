@@ -80,7 +80,64 @@ impl<T: Iterator, F: OneToOne<T::Item>> Iterator for OneToOneIter<T, F> {
     }
 }
 
+pub enum CrcAppendIter<T> {
+    Running(T, crc::Digest<'static, u16>),
+    Finishing(u8),
+    Finished,
+}
+
+impl<T> CrcAppendIter<T> {
+    fn new(iter: T, crc: &'static crc::Crc<u16>) -> Self {
+        Self::Running(iter, crc.digest())
+    }
+}
+impl<T: Iterator<Item = u8>> Iterator for CrcAppendIter<T> {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut this = Self::Finished;
+        // TODO: Rewrite to not need this swap.
+        std::mem::swap(&mut this, self);
+        match this {
+            CrcAppendIter::Running(mut iter, mut digest) => {
+                if let Some(byte) = iter.next() {
+                    digest.update(&[byte]);
+                    *self = CrcAppendIter::Running(iter, digest);
+                    Some(byte)
+                } else {
+                    let crc = digest.finalize().to_le_bytes();
+                    *self = Self::Finishing(crc[1]);
+                    Some(crc[0])
+                }
+            }
+            CrcAppendIter::Finishing(last_byte) => {
+                *self = CrcAppendIter::Finished;
+                Some(last_byte)
+            }
+            CrcAppendIter::Finished => None,
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            CrcAppendIter::Running(iter, ..) => {
+                let hint = iter.size_hint();
+                (hint.0 + 2, hint.1.map(|x| x + 2))
+            }
+            CrcAppendIter::Finishing(_) => (1, Some(1)),
+            CrcAppendIter::Finished => (0, Some(0)),
+        }
+    }
+}
+
 pub trait IteratorExt: Iterator {
+    fn append_crc(self, crc: &'static crc::Crc<u16>) -> CrcAppendIter<Self>
+    where
+        Self: std::marker::Sized + Iterator<Item = u8>,
+    {
+        CrcAppendIter::new(self, crc)
+    }
+
     fn bits_msb(self) -> MsbIterator<Self>
     where
         Self: std::marker::Sized + Iterator<Item = u8>,
@@ -140,6 +197,18 @@ impl<T: Iterator> IteratorExt for T {}
 mod tests {
     use super::*;
 
+    #[test]
+    fn test_append_crc() {
+        let vec_golden: Vec<u8> = hex::decode("82a0aa646a9ce0ae8270989a8c60ae92888a62406303f03e3230323333377a687474703a2f2f7761386c6d662e636f6d0df782").unwrap();
+
+        let vec: Vec<u8> = hex::decode("82a0aa646a9ce0ae8270989a8c60ae92888a62406303f03e3230323333377a687474703a2f2f7761386c6d662e636f6d0d").unwrap();
+        const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_IBM_SDLC);
+
+        assert_eq!(
+            vec_golden,
+            vec.into_iter().append_crc(&X25).collect::<Vec<_>>()
+        );
+    }
     #[test]
     fn msb_bit_iterator() {
         let vec = vec![0x0Fu8, 0xF0u8];
