@@ -90,9 +90,7 @@ impl HamAddr {
     pub fn from_chunks(chunks: [u16; 4]) -> HamAddr {
         let mut ret = Self::EMPTY;
         let mut iter_mut = ret.0.iter_mut();
-        let mut iter = chunks
-            .into_iter()
-            .flat_map(u16::to_be_bytes);
+        let mut iter = chunks.into_iter().flat_map(u16::to_be_bytes);
         for _ in 0..8 {
             *iter_mut.next().unwrap() = iter.next().unwrap()
         }
@@ -113,6 +111,23 @@ impl HamAddr {
 
     /// Tries to create a HamAddr from the given callsign string.
     pub fn try_from_callsign(callsign: &str) -> Result<HamAddr> {
+        // Iterator type for converting a string into chunks.
+        struct StrChunkIterator<T: Iterator<Item = char> + FusedIterator>(T);
+        impl<T: Iterator<Item = char> + FusedIterator> Iterator for StrChunkIterator<T> {
+            type Item = Result<u16, anyhow::Error>;
+            fn next(&mut self) -> Option<Self::Item> {
+                let c0 = self.0.next()?;
+                let c1 = self.0.next().unwrap_or('\x00');
+                let c2 = self.0.next().unwrap_or('\x00');
+                Some(
+                    HamCharChunk::try_from([c0, c1, c2])
+                        .map(u16::from)
+                        .map_err(anyhow::Error::from),
+                )
+            }
+        }
+
+        // Handle special non-callsign cases.
         if let Some('~') | None = callsign.chars().next() {
             if callsign.len() <= 1 {
                 return Ok(HamAddr::EMPTY);
@@ -124,27 +139,25 @@ impl HamAddr {
         }
 
         let mut iter = StrChunkIterator(callsign.chars());
-        let c0 = iter.next().transpose()?.unwrap_or(HamCharChunk::EMPTY);
-        let c1 = iter.next().transpose()?.unwrap_or(HamCharChunk::EMPTY);
-        let c2 = iter.next().transpose()?.unwrap_or(HamCharChunk::EMPTY);
-        let c3 = iter.next().transpose()?.unwrap_or(HamCharChunk::EMPTY);
+        let mut chunks = [0u16; 4];
+
+        for chunk in chunks.iter_mut() {
+            *chunk = iter.next().transpose()?.unwrap_or(0);
+        }
+
         if iter.next().is_some() {
             bail!("Callsign too long");
         }
-        Ok(HamAddr::from_chunks([
-            c0.into(),
-            c1.into(),
-            c2.into(),
-            c3.into(),
-        ]))
+
+        Ok(HamAddr::from_chunks(chunks))
     }
 
-    /// Tries to return the value of this `HamAddr` as a short address.
-    pub fn shortaddr(&self) -> Option<NonZeroU16> {
-        if self.get_type() == HamAddrType::Short {
-            NonZeroU16::new(self.chunk(0))
-        } else {
-            None
+    /// Tries to return the value of this `HamAddr` as a temporary short addreses.
+    pub const fn shortaddr(&self) -> Option<NonZeroU16> {
+        // We use match instead of == so we can stay const.
+        match self.get_type() {
+            HamAddrType::Short => NonZeroU16::new(self.chunk(0)),
+            _ => None
         }
     }
 
@@ -167,11 +180,11 @@ impl HamAddr {
     /// Returns the minimum required length to
     /// encode this address in bytes.
     pub const fn len(&self) -> usize {
-        if self.0[6] | self.0[7] != 0 {
+        if self.chunk(3) != 0 {
             8
-        } else if self.0[4] | self.0[5] != 0 {
+        } else if self.chunk(2) != 0 {
             6
-        } else if self.0[2] | self.0[3] != 0 {
+        } else if self.chunk(1) != 0 {
             4
         } else {
             2
@@ -192,11 +205,13 @@ impl HamAddr {
 
     /// Returns `true` if this `HamAddr` is equal to `HamAddr::EMPTY`.
     pub const fn is_empty(&self) -> bool {
+        // We do individual chunk comparisons so that we can remain const.
         self.chunk(0) == 0 && self.chunk(1) == 0 && self.chunk(2) == 0 && self.chunk(3) == 0
     }
 
     /// Returns `true` if this `HamAddr` is a callsign.
     pub const fn is_callsign(&self) -> bool {
+        // We use match instead of == so we can stay const.
         match self.get_type() {
             HamAddrType::Callsign => true,
             _ => false,
@@ -214,11 +229,13 @@ impl HamAddr {
 
     /// Returns `true` if this `HamAddr` is equal to `HamAddr::BROADCAST`.
     pub const fn is_broadcast(&self) -> bool {
+        // We do individual chunk comparisons so that we can remain const.
         self.chunk(0) == 0xFFFF && self.chunk(1) == 0 && self.chunk(2) == 0 && self.chunk(3) == 0
     }
 
     /// Returns `true` if this `HamAddr` is a reserved value.
     pub const fn is_reserved(&self) -> bool {
+        // We use match instead of == so we can stay const.
         match self.get_type() {
             HamAddrType::Reserved => true,
             _ => false,
@@ -254,6 +271,8 @@ impl HamAddr {
                 HamAddrType::Reserved
             }
         } else if self.chunk(0) < 0xFA00 {
+            // We unroll our loop over the remaining chunks
+            // so we can keep this function const.
             let chunk = self.chunk(1);
             if chunk != 0 && (chunk < 0x0640 || chunk >= 0xFA00) {
                 return HamAddrType::Reserved;
@@ -345,19 +364,6 @@ impl Debug for HamAddr {
     }
 }
 
-pub(crate) struct StrChunkIterator<T: Iterator<Item = char> + FusedIterator>(T);
-
-impl<T: Iterator<Item = char> + FusedIterator> Iterator for StrChunkIterator<T> {
-    type Item = Result<HamCharChunk, anyhow::Error>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let c0 = self.0.next()?;
-        let c1 = self.0.next().unwrap_or('\x00');
-        let c2 = self.0.next().unwrap_or('\x00');
-        Some(HamCharChunk::try_from([c0, c1, c2]).map_err(anyhow::Error::from))
-    }
-}
-
 impl FromStr for HamAddr {
     type Err = anyhow::Error;
 
@@ -373,10 +379,13 @@ impl TryFrom<HamAddr> for Eui64 {
             HamAddrType::Empty => Ok(Eui64::EMPTY),
             HamAddrType::Broadcast => Ok(Eui64::BROADCAST),
             HamAddrType::Callsign => {
-                if value.chunk(3) & 0b0111 != 0 {
+                if value.0[7] & 0b0111 != 0 {
                     bail!("HamAddr too big");
                 }
 
+                // If the last chunk is empty and the last three
+                // bits on the second-to-last chunk are zero,
+                // then the address can be rendered as an EUI-48.
                 let is_small = value.chunk(3) == 0 && (value.chunk(2) & 0b0111) == 0;
                 let mut bytes = value.octets();
                 let first_byte = std::mem::take(&mut bytes[if is_small { 5 } else { 7 }]);

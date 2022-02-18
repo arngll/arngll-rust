@@ -174,12 +174,9 @@ impl Display for HamChar {
     }
 }
 
+/// A "Chunk" of three HamChars that can be easily converted from/into a `u16`.
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Default)]
 pub(crate) struct HamCharChunk(pub [HamChar; 3]);
-
-impl HamCharChunk {
-    pub const EMPTY: HamCharChunk = HamCharChunk([HamChar::NUL, HamChar::NUL, HamChar::NUL]);
-}
 
 impl From<HamCharChunk> for u16 {
     fn from(chunk: HamCharChunk) -> Self {
@@ -211,34 +208,6 @@ impl TryFrom<[char; 3]> for HamCharChunk {
             chunk[0].try_into().map_err(|_| InvalidCharAt(0))?,
             chunk[1].try_into().map_err(|_| InvalidCharAt(1))?,
             chunk[2].try_into().map_err(|_| InvalidCharAt(2))?,
-        ]))
-    }
-}
-
-impl TryFrom<&[char]> for HamCharChunk {
-    type Error = InvalidCharAt;
-
-    fn try_from(chunk: &[char]) -> Result<Self, Self::Error> {
-        assert!(chunk.len() <= 3);
-        Ok(HamCharChunk([
-            chunk
-                .get(0)
-                .copied()
-                .unwrap_or('\x00')
-                .try_into()
-                .map_err(|_| InvalidCharAt(0))?,
-            chunk
-                .get(1)
-                .copied()
-                .unwrap_or('\x00')
-                .try_into()
-                .map_err(|_| InvalidCharAt(1))?,
-            chunk
-                .get(2)
-                .copied()
-                .unwrap_or('\x00')
-                .try_into()
-                .map_err(|_| InvalidCharAt(2))?,
         ]))
     }
 }
