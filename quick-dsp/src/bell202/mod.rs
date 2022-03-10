@@ -25,6 +25,7 @@ mod sender;
 use crate::filter::*;
 pub use receiver::*;
 pub use sender::*;
+use std::fmt::{Debug, Formatter};
 
 pub const BELL202_RATE: u32 = 1200;
 pub const BELL202_MARK: u32 = 1200;
@@ -93,10 +94,69 @@ where
         .apply_one_to_one(Decimator::<f32, Out>::default())
 }
 
+pub struct Ax25Debug<'a>(pub &'a [u8]);
+
+impl<'a> Ax25Debug<'a> {
+    /// Returns the length of the address field
+    pub fn addr_len(&self) -> usize {
+        self.0.iter().take_while(|&x| x & 1 != 1).count() + 1
+    }
+
+    pub fn addr_bytes(&self) -> impl Iterator<Item = u8> + 'a {
+        self.0[..self.addr_len()].iter().copied()
+    }
+
+    pub fn addr_escaped_ascii(&self) -> impl Iterator<Item = u8> + 'a {
+        self.addr_bytes()
+            .map(|x| x >> 1)
+            .map(|x| if x.is_ascii() && x > 31 { x } else { b'.' })
+            .flat_map(std::ascii::escape_default)
+    }
+
+    pub fn payload_bytes(&self) -> impl Iterator<Item = u8> + 'a {
+        self.0[self.addr_len()..].iter().copied()
+    }
+
+    pub fn payload_escaped_ascii(&self) -> impl Iterator<Item = u8> + 'a {
+        self.payload_bytes()
+            .map(|x| if x.is_ascii() && x > 31 { x } else { b'.' })
+            .flat_map(std::ascii::escape_default)
+    }
+
+    /// Returns true if this looks like a AX25 packet
+    pub fn is_ax25(&self) -> bool {
+        (self.addr_len() % 7) == 0
+    }
+}
+
+impl<'a> Debug for Ax25Debug<'a> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        use core::str::from_utf8;
+
+        let addr_escaped = self.addr_escaped_ascii().collect::<Vec<_>>();
+        let addr_str = from_utf8(&addr_escaped).unwrap();
+
+        let payload_escaped = self.payload_escaped_ascii().collect::<Vec<_>>();
+        let payload_str = from_utf8(&payload_escaped).unwrap();
+
+        write!(f, "[{}]{}", addr_str, payload_str)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::filter::Downsampler;
+
+    #[test]
+    fn test_ax25_debug_decode() {
+        let vec: Vec<u8> = hex::decode("82a0aa646a9ce0ae8270989a8c60ae92888a62406303f03e3230323333377a687474703a2f2f7761386c6d662e636f6d0df782").unwrap();
+        assert!(Ax25Debug(&vec).is_ax25());
+        assert_eq!(
+            format!("{:?}", Ax25Debug(&vec)),
+            "[APU25NpWA8LMF0WIDE1 1]..>202337zhttp://wa8lmf.com..."
+        );
+    }
 
     #[test]
     fn test_bell_202_encode_decode() {
