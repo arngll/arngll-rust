@@ -62,12 +62,28 @@ pub enum HamAddrType {
 
 impl HamAddr {
     /// Empty Address Constant.
+    ///
+    /// ```
+    /// # use hamaddr::HamAddr;
+    /// assert!(HamAddr::EMPTY.is_empty());
+    /// ```
     pub const EMPTY: HamAddr = HamAddr([0, 0, 0, 0, 0, 0, 0, 0]);
 
     /// Broadcast Address Constant.
+    ///
+    /// ```
+    /// # use hamaddr::HamAddr;
+    /// assert!(HamAddr::BROADCAST.is_broadcast());
+    /// ```
     pub const BROADCAST: HamAddr = HamAddr([0xFF, 0xFF, 0, 0, 0, 0, 0, 0]);
 
     /// Creates a new `HamAddr` from the given array of 8 bytes.
+    ///
+    /// ```
+    /// # use hamaddr::HamAddr;
+    /// let addr = HamAddr::new([0x46,0x71,0x6C,0xA0,0,0,0,0]);
+    /// assert_eq!(addr.to_string(), "KJ6QOH");
+    /// ```
     pub const fn new(octets: [u8; 8]) -> HamAddr {
         HamAddr(octets)
     }
@@ -75,6 +91,13 @@ impl HamAddr {
     /// Creates a new `HamAddr` from the given short address.
     ///
     /// Returns `None` if `shortaddr` is larger than `0x063F`.
+    ///
+    /// ```
+    /// # use std::num::NonZeroU16;
+    /// # use hamaddr::HamAddr;
+    /// let addr = HamAddr::try_from_shortaddr(NonZeroU16::new(48).unwrap()).unwrap();
+    /// assert_eq!(addr.shortaddr(), NonZeroU16::new(48));
+    /// ```
     pub const fn try_from_shortaddr(shortaddr: NonZeroU16) -> Option<HamAddr> {
         if shortaddr.get() > 0x063F {
             return None;
@@ -87,6 +110,12 @@ impl HamAddr {
     }
 
     /// Creates a `HamAddr` from a an array of four `u16` "chunks".
+    ///
+    /// ```
+    /// # use hamaddr::HamAddr;
+    /// let addr = HamAddr::from_chunks([0x4671,0x6CA0,0,0]);
+    /// assert_eq!(addr.to_string(), "KJ6QOH");
+    /// ```
     pub fn from_chunks(chunks: [u16; 4]) -> HamAddr {
         let mut ret = Self::EMPTY;
         let mut iter_mut = ret.0.iter_mut();
@@ -100,6 +129,12 @@ impl HamAddr {
     /// Tries to create a HamAddr from a byte slice.
     ///
     /// The byte slice must be either 2, 4, 6, or 8 bytes long.
+    ///
+    /// ```
+    /// # use hamaddr::HamAddr;
+    /// let addr = HamAddr::try_from_slice(&[0x46,0x71,0x6C,0xA0]).unwrap();
+    /// assert_eq!(addr.to_string(), "KJ6QOH");
+    /// ```
     pub fn try_from_slice(bytes: &[u8]) -> Result<HamAddr> {
         if (bytes.len() & 1) == 1 || bytes.len() > 8 {
             bail!("Invalid slice length");
@@ -110,6 +145,12 @@ impl HamAddr {
     }
 
     /// Tries to create a HamAddr from the given callsign string.
+    ///
+    /// ```
+    /// # use hamaddr::HamAddr;
+    /// let addr = HamAddr::try_from_callsign("kj6QOH").unwrap();
+    /// assert_eq!(addr.to_string(), "KJ6QOH");
+    /// ```
     pub fn try_from_callsign(callsign: &str) -> Result<HamAddr> {
         // Iterator type for converting a string into chunks.
         struct StrChunkIterator<T: Iterator<Item = char> + FusedIterator>(T);
@@ -153,11 +194,18 @@ impl HamAddr {
     }
 
     /// Tries to return the value of this `HamAddr` as a temporary short addreses.
+    ///
+    /// ```
+    /// # use std::num::NonZeroU16;
+    /// # use hamaddr::HamAddr;
+    /// let addr = HamAddr::try_from_shortaddr(NonZeroU16::new(48).unwrap()).unwrap();
+    /// assert_eq!(addr.shortaddr(), NonZeroU16::new(48));
+    /// ```
     pub const fn shortaddr(&self) -> Option<NonZeroU16> {
         // We use match instead of == so we can stay const.
         match self.get_type() {
             HamAddrType::Short => NonZeroU16::new(self.chunk(0)),
-            _ => None
+            _ => None,
         }
     }
 
