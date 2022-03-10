@@ -25,6 +25,7 @@ use cpal::traits::*;
 use cpal::*;
 use futures::channel::mpsc;
 use futures::SinkExt;
+use log::debug;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
@@ -54,6 +55,8 @@ impl Bell202Sender {
         let mut encoder = bell_202_encode(vec![].into_iter(), sample_rate, 0.75);
 
         let (sendframe_sender, mut sendframe_receiver) = mpsc::channel::<Vec<u8>>(3);
+
+        debug!("Sender stream config: {:?}", supported_config);
 
         let output_audio_stream = device.build_output_stream(
             &supported_config,

@@ -60,7 +60,13 @@ impl Bell202Receiver {
                 if let Ok(ret) = Self::new_with_config(device, &supported_config) {
                     Ok(ret)
                 } else {
-                    Err(err)
+                    // Last try.
+                    supported_config.sample_rate = SampleRate(48000);
+                    if let Ok(ret) = Self::new_with_config(device, &supported_config) {
+                        Ok(ret)
+                    } else {
+                        Err(err)
+                    }
                 }
             }
         }
@@ -70,7 +76,7 @@ impl Bell202Receiver {
         device: &cpal::Device,
         supported_config: &StreamConfig,
     ) -> Result<Bell202Receiver, Error> {
-        debug!("supported_config: {:?}", supported_config);
+        debug!("Receiver stream config: {:?}", supported_config);
         let mut downsampler =
             Downsampler::<f32>::new(supported_config.sample_rate.0, BELL202_OPTIMAL_SAMPLE_RATE);
 
