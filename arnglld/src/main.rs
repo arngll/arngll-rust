@@ -24,9 +24,9 @@ use clap::Parser;
 use cpal::traits::{DeviceTrait, HostTrait};
 use futures::executor::{block_on, block_on_stream};
 use futures::prelude::*;
-use log::info;
 use hamaddr::HamAddr;
-use quick_dsp::bell202::{Bell202Receiver, Bell202Sender};
+use log::info;
+use quick_dsp::bell202::{Ax25Debug, Bell202Receiver, Bell202Sender};
 use quick_dsp::filter::IteratorExt as _;
 
 #[derive(Parser, Debug)]
@@ -186,6 +186,11 @@ fn main() {
     let packet_stream = opt.get_packet_stream().unwrap();
 
     for frame in block_on_stream(packet_stream) {
-        info!("Received: {:?}", hex::encode(frame));
+        let debug = Ax25Debug(&frame);
+        if debug.is_ax25() {
+            info!("Received AX25: {:?}", debug);
+        } else {
+            info!("Received: {:?}", hex::encode(frame));
+        }
     }
 }
