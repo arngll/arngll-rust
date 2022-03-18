@@ -24,6 +24,7 @@ use std::convert::TryFrom;
 use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
+mod boxfilter;
 mod decimator;
 mod discriminator;
 mod fir;
@@ -35,6 +36,7 @@ mod iter;
 mod nrzi;
 mod resample;
 
+pub use boxfilter::*;
 pub use decimator::*;
 pub use discriminator::*;
 pub use fir::*;
@@ -46,12 +48,50 @@ pub use iter::*;
 pub use nrzi::*;
 pub use resample::*;
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Window {
     Hanning,
     Hamming,
     Blackman,
     Rectangular,
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub enum FilterType {
+    LowPass,
+    HighPass,
+    BandPass,
+    BandStop,
+}
+
+impl FilterType {
+    pub fn is_band(self) -> bool {
+        match self {
+            Self::BandPass | Self::BandStop => true,
+            Self::LowPass | Self::HighPass => false,
+        }
+    }
+
+    pub fn is_band_pass(self) -> bool {
+        match self {
+            Self::BandPass => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_high_pass(self) -> bool {
+        match self {
+            Self::HighPass => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_low_pass(self) -> bool {
+        match self {
+            Self::LowPass => true,
+            _ => false,
+        }
+    }
 }
 
 pub trait Kernel {
@@ -204,22 +244,29 @@ pub trait Real:
     const NAN: Self;
     const TAU: Self;
     const PI: Self;
+    const E: Self;
     const ZERO: Self;
     const ONE: Self;
     const HALF: Self;
     const TWO: Self;
+    const FORTH: Self;
 
     fn from_f64(v: f64) -> Self;
+    fn from_usize(v: usize) -> Self {
+        Self::from_f64(v as f64)
+    }
 }
 
 impl Real for f64 {
     const NAN: Self = Self::ZERO / Self::ZERO;
     const TAU: Self = 6.28318530717958647692528676655900577_f64;
     const PI: Self = Self::TAU / 2.0;
+    const E: Self = 2.71828182845904523536028747135266250_f64;
     const ZERO: Self = 0.0f64;
     const ONE: Self = 1.0f64;
     const HALF: Self = 0.5f64;
     const TWO: Self = 2.0f64;
+    const FORTH: Self = 0.25f64;
 
     fn from_f64(v: f64) -> Self {
         v as Self
@@ -230,12 +277,38 @@ impl Real for f32 {
     const NAN: Self = Self::ZERO / Self::ZERO;
     const TAU: Self = 6.28318530717958647692528676655900577_f32;
     const PI: Self = Self::TAU / 2.0;
+    const E: Self = 2.71828182845904523536028747135266250_f32;
     const ZERO: Self = 0.0f32;
     const ONE: Self = 1.0f32;
     const HALF: Self = 0.5f32;
     const TWO: Self = 2.0f32;
+    const FORTH: Self = 0.25f32;
 
     fn from_f64(v: f64) -> Self {
         v as Self
     }
+}
+
+pub fn calc_dbs<T: Real>(zero: T, x: T) -> T {
+    (x / zero).log10() * T::from_usize(10)
+}
+
+pub fn calc_gain<T: Real, F: OneToOne<T, Output = T> + Delay>(mut filter: F, freq: T) -> T {
+    let phase_delta = T::TAU * freq;
+    let mut phase = T::ZERO;
+    for _ in 0..(filter.delay() * 4 + 200) {
+        filter.filter(phase.cos());
+        phase += phase_delta;
+    }
+
+    let mut max_signal = T::ZERO;
+    for _ in 0..(filter.delay() * 4 + 200) {
+        let x = filter.filter(phase.cos()).abs();
+        phase += phase_delta;
+        if x > max_signal {
+            max_signal = x;
+        }
+    }
+
+    calc_dbs(T::ONE, max_signal)
 }

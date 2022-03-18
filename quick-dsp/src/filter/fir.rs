@@ -179,20 +179,157 @@ impl<T: Real> OneToOne<T> for FilterFir<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rasciigraph as rag;
+
+    fn rag_config() -> rag::Config {
+        rag::Config::default()
+            .with_offset(10)
+            .with_height(10)
+            .with_width(70)
+    }
 
     #[test]
-    fn filter_fir() {
-        let mut filter = FilterFir::low_pass(12, 0.25, Window::Hamming);
+    fn filter_fir_low_pass_histogram_12_pole() {
+        let kernel = FilterFirKernel::low_pass(12, 0.25f64, Window::Blackman);
 
-        println!("Filter = {:?}", filter);
-        assert_eq!(filter.filter(0.0), 0.0);
-        assert_eq!(filter.filter(0.0), 0.0);
-        assert_eq!(filter.filter(0.0), 0.0);
-        assert_eq!(filter.filter(0.0), 0.0);
-        assert_eq!(filter.filter(0.0), 0.0);
-        assert_eq!(filter.filter(0.0), 0.0);
-        assert_eq!(filter.filter(0.0), 0.0);
-        assert_eq!(filter.filter(0.0), 0.0);
-        assert_eq!(filter.filter(0.0), 0.0);
+        let fresponse = (0..=50)
+            .into_iter()
+            .map(|i| calc_gain(kernel.clone().into_filter(), (i as f64) / 100f64))
+            .collect::<Vec<_>>();
+
+        let histogram = rag::plot(
+            fresponse,
+            rag_config().with_caption("filter_fir_low_pass_histogram_12_pole".to_string()),
+        );
+
+        println!("{}", histogram);
+    }
+
+    #[test]
+    fn filter_fir_low_pass_histogram_24_pole() {
+        let kernel = FilterFirKernel::low_pass(24, 0.25f64, Window::Blackman);
+
+        let fresponse = (0..=50)
+            .into_iter()
+            .map(|i| calc_gain(kernel.clone().into_filter(), (i as f64) / 100f64))
+            .collect::<Vec<_>>();
+
+        let histogram = rag::plot(
+            fresponse,
+            rag_config().with_caption("filter_fir_low_pass_histogram_24_pole".to_string()),
+        );
+
+        println!("{}", histogram);
+    }
+
+    #[test]
+    fn filter_fir_low_pass_histogram_100_pole() {
+        let kernel = FilterFirKernel::low_pass(100, 0.25f64, Window::Blackman);
+
+        let fresponse = (0..=50)
+            .into_iter()
+            .map(|i| calc_gain(kernel.clone().into_filter(), (i as f64) / 100f64))
+            .collect::<Vec<_>>();
+
+        let histogram = rag::plot(
+            fresponse,
+            rag_config().with_caption("filter_fir_low_pass_histogram_100_pole".to_string()),
+        );
+
+        println!("{}", histogram);
+    }
+
+    #[test]
+    fn filter_fir_high_pass_histogram_24_pole() {
+        let kernel = FilterFirKernel::high_pass(24, 0.25f64, Window::Blackman);
+
+        let fresponse = (1..=50)
+            .into_iter()
+            .map(|i| calc_gain(kernel.clone().into_filter(), (i as f64) / 100f64))
+            .collect::<Vec<_>>();
+
+        let histogram = rag::plot(
+            fresponse,
+            rag_config().with_caption("filter_fir_high_pass_histogram_24_pole".to_string()),
+        );
+
+        println!("{}", histogram);
+    }
+
+    #[test]
+    fn filter_fir_band_pass_histogram_24_pole() {
+        let kernel = FilterFirKernel::band_pass(24, 0.1666f64, 0.33333f64, Window::Blackman);
+
+        let fresponse = (1..=50)
+            .into_iter()
+            .map(|i| calc_gain(kernel.clone().into_filter(), (i as f64) / 100f64))
+            .collect::<Vec<_>>();
+
+        let histogram = rag::plot(
+            fresponse,
+            rag_config().with_caption("filter_fir_band_pass_histogram_24_pole".to_string()),
+        );
+
+        println!("{}", histogram);
+    }
+
+    #[test]
+    fn filter_fir_low_pass_12_pole() {
+        let gain_h = calc_gain(FilterFir::low_pass(12, 0.25f64, Window::Blackman), 0.35f64);
+        println!("12-pole gain_h: {:.2}dB", gain_h);
+        assert!(gain_h < -10.0);
+
+        let gain_l = calc_gain(FilterFir::low_pass(12, 0.25f64, Window::Blackman), 0.15f64);
+        println!("12-pole gain_l: {:.2}dB", gain_l);
+        assert!(gain_l > -0.5);
+        assert!(gain_l < 0.01);
+    }
+
+    #[test]
+    fn filter_fir_low_pass_24_pole() {
+        let gain_h = calc_gain(FilterFir::low_pass(24, 0.25f64, Window::Blackman), 0.35f64);
+        println!("24-pole gain_h: {:.2}dB", gain_h);
+        assert!(gain_h < -25.0);
+
+        let gain_l = calc_gain(FilterFir::low_pass(24, 0.25f64, Window::Blackman), 0.15f64);
+        println!("24-pole gain_l: {:.2}dB", gain_l);
+        assert!(gain_l > -0.5);
+        assert!(gain_l < 0.01);
+    }
+
+    #[test]
+    fn filter_fir_low_pass_100_pole() {
+        let gain_h = calc_gain(FilterFir::low_pass(100, 0.25f64, Window::Blackman), 0.45f64);
+        println!("50-pole gain_h: {:.2}dB", gain_h);
+        assert!(gain_h < -57.0);
+
+        let gain_l = calc_gain(FilterFir::low_pass(50, 0.25f64, Window::Blackman), 0.15f64);
+        println!("50-pole gain_l: {:.2}dB", gain_l);
+        assert!(gain_l > -0.5);
+        assert!(gain_l < 0.01);
+    }
+
+    #[test]
+    fn filter_fir_high_pass_12_pole() {
+        let gain_h = calc_gain(FilterFir::high_pass(12, 0.25f64, Window::Blackman), 0.35f64);
+        println!("12-pole gain_h: {:.2}dB", gain_h);
+        assert!(gain_h > -0.5);
+        assert!(gain_h < 0.01);
+
+        let gain_l = calc_gain(FilterFir::high_pass(12, 0.25f64, Window::Blackman), 0.15f64);
+        println!("12-pole gain_l: {:.2}dB", gain_l);
+        assert!(gain_l < -10.0);
+    }
+
+    #[test]
+    fn filter_fir_high_pass_24_pole() {
+        let gain_h = calc_gain(FilterFir::high_pass(24, 0.25f64, Window::Blackman), 0.35f64);
+        println!("24-pole gain_h: {:.2}dB", gain_h);
+        assert!(gain_h > -0.5);
+        assert!(gain_h < 0.01);
+
+        let gain_l = calc_gain(FilterFir::high_pass(24, 0.25f64, Window::Blackman), 0.15f64);
+        println!("24-pole gain_l: {:.2}dB", gain_l);
+        assert!(gain_l < -29.0);
     }
 }
