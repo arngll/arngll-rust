@@ -44,7 +44,7 @@ impl<T, F: Delay> Delay for Discriminator<T, F> {
 
 impl<T: Real, F> Discriminator<T, F> {
     pub fn digital_default() -> Discriminator<T, FilterFir<T>> {
-        Self::new(10, 0.10, 15, 0.10)
+        Self::new(15, 0.1, 15, 0.1)
     }
 
     pub fn analog_default() -> Discriminator<T, FilterFir<T>> {
@@ -58,15 +58,18 @@ impl<T: Real, F> Discriminator<T, F> {
         out_filter_cutoff: f64,
     ) -> Discriminator<T, FilterFir<T>> {
         let window = Window::Blackman;
+        let iq_kernel = FilterFirKernel::<T>::low_pass(iq_filter_poles, iq_filter_cutoff, window);
+        let out_kernel =
+            FilterFirKernel::<T>::low_pass(out_filter_poles, out_filter_cutoff, window);
         Discriminator {
             current_step: 0,
             v_i: T::ZERO,
             v_q: T::ZERO,
             last: T::ZERO,
             last_angle: T::ZERO,
-            filter_i: FilterFir::<T>::low_pass(iq_filter_poles, iq_filter_cutoff, window),
-            filter_q: FilterFir::<T>::low_pass(iq_filter_poles, iq_filter_cutoff, window),
-            filter_out: FilterFir::<T>::low_pass(out_filter_poles, out_filter_cutoff, window),
+            filter_i: iq_kernel.clone().into_filter(),
+            filter_q: iq_kernel.into_filter(),
+            filter_out: out_kernel.into_filter(),
         }
     }
 }
@@ -90,10 +93,10 @@ where
         };
         self.current_step = (self.current_step + 1) & 3;
 
-        let v_i = self.filter_i.filter(v_i) * T::from_f64(2.0);
-        let v_q = self.filter_q.filter(v_q) * T::from_f64(2.0);
+        let v_i = self.filter_i.filter(v_i) * T::TWO;
+        let v_q = self.filter_q.filter(v_q) * T::TWO;
 
-        let carrier = T::from_f64(0.25f64);
+        let carrier = T::FORTH;
         let inv_carrier = T::ONE / carrier;
 
         let neg_recip_tau = -inv_carrier / T::TAU;
@@ -101,9 +104,10 @@ where
         let mag_sq = v_i * v_i + v_q * v_q;
 
         self.last = if mag_sq.eq(&T::ZERO) {
+            // If the magnitude is zero then simply repeat the last value.
             self.last
-        } else if false {
-            // high-quality
+        } else if true {
+            // Highest quality, but uses atan2.
             let ret = -self.last_angle;
             self.last_angle = v_q.atan2(v_i);
             let ret = ret + self.last_angle;
@@ -115,7 +119,7 @@ where
                 ret
             }
         } else {
-            // low-quality
+            // Acceptable quality, no atan.
             let ret = (v_q * self.v_i - v_i * self.v_q) / mag_sq;
             self.v_i = v_i;
             self.v_q = v_q;
@@ -197,8 +201,8 @@ mod tests {
                 let _ = disc.filter(*f);
             }
 
-            // Value should settle 3 samples after the delay is flushed.
-            for _i in 0..3 {
+            // Value should settle 10 samples after the delay is flushed.
+            for _i in 0..10 {
                 let _ = disc.filter(*f);
             }
 

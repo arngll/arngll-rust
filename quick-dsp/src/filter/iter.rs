@@ -167,6 +167,7 @@ pub trait IteratorExt: Iterator {
         HdlcEncoderIter::new(self)
     }
 
+    /// Resample values, nearest-neighbor
     fn resample_nn(self, scale: f32) -> ResampleNN<Self>
     where
         Self: std::marker::Sized + Iterator,

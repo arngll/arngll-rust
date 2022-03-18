@@ -39,6 +39,7 @@ impl<T: Real> Downsampler<T> {
         );
 
         if in_sample_rate == out_sample_rate {
+            // Return a special downsampler that doesn't do anything.
             return Downsampler {
                 filter: FilterFir::<T>::low_pass(1, 0.5, Window::Rectangular),
                 skip: true,
@@ -54,7 +55,7 @@ impl<T: Real> Downsampler<T> {
         let cutoff =
             0.5f64 / (inter_factor as f64) * (out_sample_rate as f64) / (in_sample_rate as f64);
         Downsampler {
-            filter: FilterFir::<T>::low_pass(7, cutoff, Window::Blackman),
+            filter: FilterFir::<T>::low_pass(50, cutoff, Window::Blackman),
             skip: false,
             out_sample_rate,
             accumulator: 0,
