@@ -50,6 +50,30 @@ impl Bell202Sender {
         // We only care about a single channel.
         supported_config.channels = 1;
 
+        match Self::new_with_config(device, &supported_config) {
+            Ok(ret) => Ok(ret),
+            Err(err) => {
+                // Try a different sample rate.
+                supported_config.sample_rate = SampleRate(11025);
+                if let Ok(ret) = Self::new_with_config(device, &supported_config) {
+                    Ok(ret)
+                } else {
+                    // Last try.
+                    supported_config.sample_rate = SampleRate(8000);
+                    if let Ok(ret) = Self::new_with_config(device, &supported_config) {
+                        Ok(ret)
+                    } else {
+                        Err(err)
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn new_with_config(
+        device: &cpal::Device,
+        supported_config: &StreamConfig,
+    ) -> Result<Bell202Sender, Error> {
         let sample_rate = supported_config.sample_rate.0;
 
         let mut encoder = bell_202_encode(vec![].into_iter(), sample_rate, 0.75);
