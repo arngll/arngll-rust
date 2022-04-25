@@ -19,7 +19,7 @@
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-use crate::filter::{HdlcEncoderIter, NrziEncode, OneToOne, ResampleNN};
+use crate::filter::{HdlcEncoderIter, NrziEncode, Filter, ResampleNN};
 
 /// Transforms an iterator over bytes into an iterator over bits,
 /// most significant bit first.
@@ -68,7 +68,7 @@ pub struct OneToOneIter<T, F> {
     filter: F,
 }
 
-impl<T: Iterator, F: OneToOne<T::Item>> Iterator for OneToOneIter<T, F> {
+impl<T: Iterator, F: Filter<T::Item>> Iterator for OneToOneIter<T, F> {
     type Item = F::Output;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -178,7 +178,7 @@ pub trait IteratorExt: Iterator {
 
     fn apply_one_to_one<F>(self, filter: F) -> OneToOneIter<Self, F>
     where
-        F: OneToOne<Self::Item>,
+        F: Filter<Self::Item>,
         Self: std::marker::Sized + Iterator,
     {
         OneToOneIter { iter: self, filter }

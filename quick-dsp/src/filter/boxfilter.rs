@@ -21,6 +21,7 @@
 
 //! FIR Filter.
 
+use std::cmp::Ordering;
 use super::*;
 
 #[derive(Clone, Debug)]
@@ -38,7 +39,7 @@ impl<T: Real> FilterBox<T> {
     }
 }
 
-impl<T: Real> OneToOne<T> for FilterBox<T> {
+impl<T: Real> Filter<T> for FilterBox<T> {
     type Output = T;
 
     fn filter(&mut self, sample: T) -> T {
@@ -47,6 +48,47 @@ impl<T: Real> OneToOne<T> for FilterBox<T> {
         let ret: T = self.0.iter().copied().sum();
 
         ret / T::from_f64(self.0.len() as f64)
+    }
+}
+
+
+
+
+#[derive(Clone, Debug)]
+pub struct FilterMedian<T, const N: usize>([T;N]);
+
+impl<T, const N: usize> Delay for FilterMedian<T,N> {
+    fn delay(&self) -> usize {
+        N/2
+    }
+}
+
+impl<T:Default, const N: usize> Default for FilterMedian<T,N>
+    where [T;N]: Default
+{
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
+impl<T: Default, const N: usize> FilterMedian<T,N>
+    where [T;N]: Default
+{
+    pub fn new() -> Self {
+        Default::default()
+    }
+}
+
+impl<T: Default + Copy + PartialOrd, const N: usize> Filter<T> for FilterMedian<T,N> {
+    type Output = T;
+
+    fn filter(&mut self, sample: T) -> T {
+        // Not super fast, but it works.
+        self.0.copy_within(0..N-1,1);
+        self.0[0] = sample;
+        let mut x = self.0.clone();
+        x.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+        x[N/2]
     }
 }
 

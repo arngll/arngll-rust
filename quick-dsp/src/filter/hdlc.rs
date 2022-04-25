@@ -152,7 +152,7 @@ impl Reset for HdlcDecode {
     }
 }
 
-impl OneToOne<Option<bool>> for HdlcDecode {
+impl Filter<Option<bool>> for HdlcDecode {
     type Output = Option<FrameSignal>;
 
     fn filter(&mut self, sample: Option<bool>) -> Self::Output {
@@ -169,7 +169,7 @@ impl OneToOne<Option<bool>> for HdlcDecode {
     }
 }
 
-impl OneToOne<bool> for HdlcDecode {
+impl Filter<bool> for HdlcDecode {
     type Output = Option<FrameSignal>;
 
     fn filter(&mut self, sample: bool) -> Self::Output {
@@ -239,7 +239,7 @@ impl Delay for FrameCollector {
     }
 }
 
-impl OneToOne<Option<FrameSignal>> for FrameCollector {
+impl Filter<Option<FrameSignal>> for FrameCollector {
     type Output = Option<Vec<u8>>;
 
     fn filter(&mut self, sample: Option<FrameSignal>) -> Self::Output {
@@ -294,7 +294,7 @@ impl Reset for BitSampler {
     }
 }
 
-impl OneToOne<Option<bool>> for BitSampler {
+impl Filter<Option<bool>> for BitSampler {
     type Output = Option<bool>;
 
     fn filter(&mut self, sample: Option<bool>) -> Self::Output {

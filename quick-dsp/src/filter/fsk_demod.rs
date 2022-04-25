@@ -39,7 +39,7 @@ impl<T: Real> FskDemod<T> {
     }
 }
 
-impl<T: Real> OneToOne<(T, T)> for FskDemod<T> {
+impl<T: Real> Filter<(T, T)> for FskDemod<T> {
     type Output = Option<bool>;
 
     fn filter(&mut self, sample: (T, T)) -> Self::Output {
@@ -66,7 +66,7 @@ mod tests {
 
     #[test]
     fn fsk_demod_f32() {
-        let disc = Discriminator::<f32, ()>::digital_default();
+        let disc = Discriminator::<f32, (), ()>::digital_default();
         let mut disc = disc.chain(FskDemod::new(0.2, 0.3));
 
         let mut modulator = FmMod::<f32>::new(1.0);

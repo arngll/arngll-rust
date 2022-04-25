@@ -20,7 +20,7 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 use super::{bell_202_decoder, BELL202_OPTIMAL_SAMPLE_RATE};
-use crate::filter::{Downsampler, OneToOne};
+use crate::filter::{Downsampler, Filter};
 use anyhow::{Context as _, Error, Result};
 use cpal::traits::*;
 use cpal::*;
