@@ -35,6 +35,7 @@ mod iir;
 mod iter;
 mod nrzi;
 mod resample;
+mod qam;
 
 pub use boxfilter::*;
 pub use decimator::*;
@@ -47,13 +48,52 @@ pub use iir::*;
 pub use iter::*;
 pub use nrzi::*;
 pub use resample::*;
+pub use qam::*;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Window {
-    Hanning,
+    Rectangular,
+    Bartlett,
+    Hann,
     Hamming,
     Blackman,
-    Rectangular,
+    Nuttall,
+    BlackmanNuttall,
+    BlackmanHarris,
+}
+
+pub trait WindowFunc {
+    fn window_func(&self, t: f64, l:f64) -> f64;
+}
+
+impl WindowFunc for Window {
+    fn window_func(&self, t: f64, l: f64) -> f64 {
+        match self {
+            Window::Rectangular => 1.0,
+            Window::Bartlett => 2.0*((l/2.0)+t.abs())/l,
+            Window::Hann => 0.5 - 0.5 * f64::cos((f64::PI*2.0 * t) / l),
+            Window::Hamming => 0.54 - 0.46 * f64::cos((f64::PI*2.0 * t) / l),
+            Window::Blackman => {
+                0.42 - 0.5 * f64::cos((f64::PI*2.0 * t) / l)
+                    + 0.08 * f64::cos((f64::PI*4.0 * t) / l)
+            }
+            Window::Nuttall => {
+                0.355768 - 0.487396 * f64::cos((f64::PI*2.0 * t) / l)
+                    + 0.144232 * f64::cos((f64::PI*4.0 * t) / l)
+                    - 0.012604 * f64::cos((f64::PI*6.0 * t) / l)
+            }
+            Window::BlackmanNuttall => {
+                0.3635819 - 0.4891775 * f64::cos((f64::PI*2.0 * t) / l)
+                    + 0.1365995 * f64::cos((f64::PI*4.0 * t) / l)
+                    - 0.0106411 * f64::cos((f64::PI*6.0 * t) / l)
+            }
+            Window::BlackmanHarris => {
+                0.35875 - 0.48829 * f64::cos((f64::PI*2.0 * t) / l)
+                    + 0.14128 * f64::cos((f64::PI*4.0 * t) / l)
+                    - 0.01168 * f64::cos((f64::PI*6.0 * t) / l)
+            }
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
@@ -94,48 +134,66 @@ impl FilterType {
     }
 }
 
-pub trait Kernel {
-    type Filter;
+pub trait IntoFilter<T> {
+    type Filter: Filter<T>;
     fn into_filter(self) -> Self::Filter;
 }
 
-pub trait OneToOne<T> {
+pub trait Filter<T> {
     type Output;
     fn filter(&mut self, sample: T) -> Self::Output;
 }
 
-pub trait OneToOneExt<T>: OneToOne<T> + Sized {
-    fn chain<B: OneToOne<Self::Output>>(self, b: B) -> OneToOneChain<Self, B>
+pub trait FilterExt<T>: Filter<T> + Sized {
+    fn chain<B: Filter<Self::Output>>(self, b: B) -> Chain<Self, B>
     where
         Self: Sized,
     {
-        OneToOneChain(self, b)
+        Chain(self, b)
     }
 
-    fn optional(self) -> OneToOneOptional<Self> {
-        OneToOneOptional(self)
+    fn optional(self) -> Optional<Self> {
+        Optional(self)
     }
 
-    fn inspect<F: Fn(&Self::Output)>(self, f: F) -> OneToOneInspect<Self, F> {
-        OneToOneInspect(self, f)
+    fn inspect<F: Fn(&Self::Output)>(self, f: F) -> Inspect<Self, F> {
+        Inspect(self, f)
     }
 
-    fn boxed<'a>(self) -> BoxOneToOne<'a, T, Self::Output>
+    fn boxed<'a>(self) -> BoxedFilter<'a, T, Self::Output>
     where
         Self: 'a + Sized,
     {
-        Box::new(self) as BoxOneToOne<T, Self::Output>
+        Box::new(self) as BoxedFilter<T, Self::Output>
     }
 }
-impl<T: OneToOne<A>, A> OneToOneExt<A> for T {}
+impl<T: Filter<A>, A> FilterExt<A> for T {}
 
-pub type BoxOneToOne<'a, In, Out> = Box<dyn OneToOne<In, Output = Out> + 'a>;
+pub type BoxedFilter<'a, In, Out=In> = Box<dyn Filter<In, Output = Out> + 'a>;
 
-pub struct OneToOneOptional<A: Sized>(A);
-
-impl<T, A> OneToOne<Option<T>> for OneToOneOptional<A>
+impl<F,T> Filter<T> for Box<F>
 where
-    A: OneToOne<T>,
+    F: Filter<T>
+{
+    type Output = F::Output;
+
+    fn filter(&mut self, sample: T) -> Self::Output {
+        self.as_mut().filter(sample)
+    }
+}
+
+impl<F:Delay> Delay for Box<F>
+{
+    fn delay(&self) -> usize {
+        self.as_ref().delay()
+    }
+}
+
+pub struct Optional<A: Sized>(A);
+
+impl<T, A> Filter<Option<T>> for Optional<A>
+where
+    A: Filter<T>,
 {
     type Output = Option<A::Output>;
 
@@ -148,22 +206,22 @@ where
     }
 }
 
-impl<A: Delay> Delay for OneToOneOptional<A> {
+impl<A: Delay> Delay for Optional<A> {
     fn delay(&self) -> usize {
         self.0.delay()
     }
 }
 
-impl<A: Reset> Reset for OneToOneOptional<A> {
+impl<A: Reset> Reset for Optional<A> {
     fn reset(&mut self) {
         self.0.reset();
     }
 }
 
-pub struct OneToOneInspect<T, F>(T, F);
-impl<T, X, F> OneToOne<X> for OneToOneInspect<T, F>
+pub struct Inspect<T, F>(T, F);
+impl<T, X, F> Filter<X> for Inspect<T, F>
 where
-    T: OneToOne<X>,
+    T: Filter<X>,
     F: Fn(&T::Output),
 {
     type Output = T::Output;
@@ -175,24 +233,24 @@ where
     }
 }
 
-impl<A: Delay, F> Delay for OneToOneInspect<A, F> {
+impl<A: Delay, F> Delay for Inspect<A, F> {
     fn delay(&self) -> usize {
         self.0.delay()
     }
 }
 
-impl<A: Reset, F> Reset for OneToOneInspect<A, F> {
+impl<A: Reset, F> Reset for Inspect<A, F> {
     fn reset(&mut self) {
         self.0.reset();
     }
 }
 
-pub struct OneToOneChain<A, B>(A, B);
+pub struct Chain<A, B>(A, B);
 
-impl<T, A, B> OneToOne<T> for OneToOneChain<A, B>
+impl<T, A, B> Filter<T> for Chain<A, B>
 where
-    A: OneToOne<T>,
-    B: OneToOne<A::Output>,
+    A: Filter<T>,
+    B: Filter<A::Output>,
 {
     type Output = B::Output;
 
@@ -201,13 +259,13 @@ where
     }
 }
 
-impl<A: Delay, B: Delay> Delay for OneToOneChain<A, B> {
+impl<A: Delay, B: Delay> Delay for Chain<A, B> {
     fn delay(&self) -> usize {
         self.0.delay() + self.1.delay()
     }
 }
 
-impl<A: Reset, B: Reset> Reset for OneToOneChain<A, B> {
+impl<A: Reset, B: Reset> Reset for Chain<A, B> {
     fn reset(&mut self) {
         self.0.reset();
         self.1.reset();
@@ -225,6 +283,7 @@ pub trait Reset {
 
 pub trait Real:
     Debug
+    + Default
     + num::Float
     + Copy
     + Display
@@ -293,16 +352,16 @@ pub fn calc_dbs<T: Real>(zero: T, x: T) -> T {
     (x / zero).log10() * T::from_usize(10)
 }
 
-pub fn calc_gain<T: Real, F: OneToOne<T, Output = T> + Delay>(mut filter: F, freq: T) -> T {
+pub fn calc_gain<T: Real, F: Filter<T, Output = T> + Delay>(mut filter: F, freq: T) -> T {
     let phase_delta = T::TAU * freq;
     let mut phase = T::ZERO;
-    for _ in 0..(filter.delay() * 4 + 200) {
+    for _ in 0..(filter.delay() * 4 + 1000) {
         filter.filter(phase.cos());
         phase += phase_delta;
     }
 
     let mut max_signal = T::ZERO;
-    for _ in 0..(filter.delay() * 4 + 200) {
+    for _ in 0..(filter.delay() * 4 + 1000) {
         let x = filter.filter(phase.cos()).abs();
         phase += phase_delta;
         if x > max_signal {

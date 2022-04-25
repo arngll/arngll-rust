@@ -68,7 +68,9 @@ fn run_benchmark<P: AsRef<Path>>(path: P) -> u32 {
                     }
 
                     if X25.checksum(&frame) != 0x0f47 {
-                        badframecount += 1;
+                        if Ax25Debug(&frame).is_ax25() {
+                            badframecount += 1;
+                        }
                     } else {
                         framecount += 1;
                     }
@@ -78,10 +80,11 @@ fn run_benchmark<P: AsRef<Path>>(path: P) -> u32 {
         _ => panic!("bad data"),
     }
     println!(
-        "{}: Success:{} Bad-CRC:{}",
+        "{}: Success:{} Bad-CRC:{}, Total:{}",
         path.as_ref().to_str().unwrap(),
         framecount,
-        badframecount
+        badframecount,
+        framecount+badframecount
     );
     framecount
 }
@@ -99,7 +102,7 @@ fn benchmark_testcd01() {
         eprintln!("File {:?} doesn't exist, skipping test.", path);
         return;
     }
-    assert!(run_benchmark(path) >= 960);
+    assert!(run_benchmark(path) >= 950);
 }
 
 #[test]

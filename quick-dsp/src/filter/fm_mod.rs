@@ -37,7 +37,7 @@ impl<T: Real> FmMod<T> {
     }
 }
 
-impl<T: Real> OneToOne<T> for FmMod<T> {
+impl<T: Real> Filter<T> for FmMod<T> {
     type Output = T;
 
     fn filter(&mut self, sample: T) -> Self::Output {

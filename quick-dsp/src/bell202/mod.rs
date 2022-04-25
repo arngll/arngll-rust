@@ -30,17 +30,17 @@ use std::fmt::{Debug, Formatter};
 pub const BELL202_RATE: u32 = 1200;
 pub const BELL202_MARK: u32 = 1200;
 pub const BELL202_SPACE: u32 = 2200;
-pub const BELL202_OPTIMAL_SAMPLE_RATE: u32 = 7500;
+pub const BELL202_OPTIMAL_SAMPLE_RATE: u32 = (BELL202_MARK+BELL202_SPACE)*2+349;
 
 /// Bell 202 decoder.
 ///
 /// Feed in samples into the returned filter and it will
 /// occasionally spit out a frame. Does not check CRC.
 ///
-/// Theoretical ideal sample rate is 7500. Maximum usable sample rate
-/// is around 10000. If your sample rate is too high, you will need
-/// to downsample first.
-pub fn bell_202_decoder(sample_rate: u32) -> impl OneToOne<f32, Output = Option<Vec<u8>>> {
+/// Theoretical ideal sample rate is between 6800Hz and 7500Hz. 8000Hz
+/// works fine, too. Maximum usable sample rate is around 10,000Hz. If
+/// your sample rate is too high, you will need to downsample first.
+pub fn bell_202_decoder(sample_rate: u32) -> impl Filter<f32, Output = Option<Vec<u8>>> {
     #[cfg(not(test))]
     assert!(
         sample_rate <= 14000,
@@ -48,10 +48,10 @@ pub fn bell_202_decoder(sample_rate: u32) -> impl OneToOne<f32, Output = Option<
         sample_rate
     );
 
-    let space = (BELL202_SPACE as f32) / (sample_rate as f32);
     let mark = (BELL202_MARK as f32) / (sample_rate as f32);
+    let space = (BELL202_SPACE as f32) / (sample_rate as f32);
 
-    Discriminator::<f32, ()>::digital_default()
+    let chain = Discriminator::<_>::digital_default()
         .chain(FskDemod::new(space, mark))
         .chain(BitSampler::new(sample_rate, BELL202_RATE))
         .chain(NrziDecode::new().optional())
@@ -61,7 +61,9 @@ pub fn bell_202_decoder(sample_rate: u32) -> impl OneToOne<f32, Output = Option<
         //         println!("{:?}", x);
         //     }
         // })
-        .chain(FrameCollector::default())
+        .chain(FrameCollector::default());
+
+    chain
 }
 
 /// Bell 202 encoder.
@@ -73,9 +75,9 @@ pub fn bell_202_encode<'a, Out, InIterator: Iterator<Item = u8> + 'a>(
     iter: InIterator,
     sample_rate: u32,
     amplitude: f32,
-) -> impl Iterator<Item = <Decimator<f32, Out> as OneToOne<f32>>::Output> + 'a
+) -> impl Iterator<Item = <Decimator<f32, Out> as Filter<f32>>::Output> + 'a
 where
-    Decimator<f32, Out>: Default + OneToOne<f32>,
+    Decimator<f32, Out>: Default + Filter<f32>,
     Out: 'a,
 {
     let samples_per_bit = (sample_rate as f32) / (BELL202_RATE as f32);
@@ -166,7 +168,7 @@ mod tests {
 
     #[test]
     fn test_bell_202_encode_decode() {
-        for sample_rate in (6000u32..14900).step_by(100) {
+        for sample_rate in (6500u32..14900).step_by(100) {
             test_bell_202_encode_decode_at(sample_rate);
         }
     }
@@ -178,7 +180,7 @@ mod tests {
 
         let mut decoder = bell_202_decoder(sample_rate);
 
-        for x in iter {
+        for x in iter.chain(std::iter::repeat(0.0).take(1000)) {
             if let Some(_x) = decoder.filter(x) {
                 //println!("decoded: {:?}", hex::encode(_x));
                 return;
@@ -197,7 +199,7 @@ mod tests {
         let mut decoder = bell_202_decoder(BELL202_OPTIMAL_SAMPLE_RATE);
         let mut resampler = Downsampler::new(in_sample_rate, BELL202_OPTIMAL_SAMPLE_RATE);
 
-        for x in iter {
+        for x in iter.chain(std::iter::repeat(0.0).take(1000)) {
             if let Some(x) = resampler.filter(x) {
                 if let Some(x) = decoder.filter(x) {
                     println!("decoded: {:?}", hex::encode(&x));

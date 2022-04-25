@@ -65,7 +65,7 @@ impl<T: Real> Downsampler<T> {
     }
 }
 
-impl<T: Real> OneToOne<T> for Downsampler<T> {
+impl<T: Real> Filter<T> for Downsampler<T> {
     type Output = Option<T>;
 
     fn filter(&mut self, mut sample: T) -> Self::Output {

@@ -181,8 +181,9 @@ fn main() {
 
     println!("Sending test frame...");
 
+    let frame = frame.collect::<Vec<_>>();
     // Play the test packet.
-    block_on(packet_sink.send(frame.collect())).unwrap();
+    block_on(packet_sink.send(frame.clone())).unwrap();
 
     println!("Listening for packets...");
 

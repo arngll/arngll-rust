@@ -21,93 +21,84 @@
 
 use super::*;
 
-/// Carrier is assumed to be 0.25 (freq/4)
-///
-/// Output is (angle, magnitude_squared)
-#[derive(Clone, Debug)]
-pub struct Discriminator<T, F> {
-    current_step: u8,
+#[derive(Debug, Clone, Default)]
+pub struct QamDiscriminatorFast<T> {
     v_i: T,
     v_q: T,
     last: T,
-    last_angle: T,
-    filter_i: F,
-    filter_q: F,
-    filter_out: F,
 }
 
-impl<T, F: Delay> Delay for Discriminator<T, F> {
+impl<T> Delay for QamDiscriminatorFast<T> {
     fn delay(&self) -> usize {
-        self.filter_out.delay() + (self.filter_i.delay() + self.filter_q.delay()) / 2
+        0
     }
 }
 
-impl<T: Real, F> Discriminator<T, F> {
-    pub fn digital_default() -> Discriminator<T, FilterFir<T>> {
-        Self::new(15, 0.1, 15, 0.1)
-    }
-
-    pub fn analog_default() -> Discriminator<T, FilterFir<T>> {
-        Self::new(21, 0.25, 9, 0.25)
-    }
-
-    pub fn new(
-        iq_filter_poles: usize,
-        iq_filter_cutoff: f64,
-        out_filter_poles: usize,
-        out_filter_cutoff: f64,
-    ) -> Discriminator<T, FilterFir<T>> {
-        let window = Window::Blackman;
-        let iq_kernel = FilterFirKernel::<T>::low_pass(iq_filter_poles, iq_filter_cutoff, window);
-        let out_kernel =
-            FilterFirKernel::<T>::low_pass(out_filter_poles, out_filter_cutoff, window);
-        Discriminator {
-            current_step: 0,
-            v_i: T::ZERO,
-            v_q: T::ZERO,
-            last: T::ZERO,
-            last_angle: T::ZERO,
-            filter_i: iq_kernel.clone().into_filter(),
-            filter_q: iq_kernel.into_filter(),
-            filter_out: out_kernel.into_filter(),
-        }
-    }
-}
-
-impl<T, F: OneToOne<T, Output = T>> OneToOne<T> for Discriminator<T, F>
-where
-    T: Real,
+impl<T:Real> Filter<(T, T)> for QamDiscriminatorFast<T>
 {
     type Output = (T, T); // (angle, magnitude_squared)
 
-    fn filter(&mut self, sample: T) -> Self::Output {
-        if !sample.is_finite() {
+    fn filter(&mut self, sample: (T,T)) -> Self::Output {
+        if !sample.0.is_finite() || !sample.1.is_finite() {
             return (T::NAN, T::NAN);
         }
 
-        let (v_i, v_q) = match self.current_step {
-            0 => (sample, T::ZERO),
-            1 => (T::ZERO, sample),
-            2 => (-sample, T::ZERO),
-            _ => (T::ZERO, -sample),
-        };
-        self.current_step = (self.current_step + 1) & 3;
-
-        let v_i = self.filter_i.filter(v_i) * T::TWO;
-        let v_q = self.filter_q.filter(v_q) * T::TWO;
-
-        let carrier = T::FORTH;
-        let inv_carrier = T::ONE / carrier;
-
-        let neg_recip_tau = -inv_carrier / T::TAU;
+        let (v_i, v_q) = (sample.0 * T::TWO, sample.1 * T::TWO);
 
         let mag_sq = v_i * v_i + v_q * v_q;
 
         self.last = if mag_sq.eq(&T::ZERO) {
             // If the magnitude is zero then simply repeat the last value.
             self.last
-        } else if true {
-            // Highest quality, but uses atan2.
+        } else {
+            let ret = (v_q * self.v_i - v_i * self.v_q) / mag_sq;
+            self.v_i = v_i;
+            self.v_q = v_q;
+            ret
+        };
+
+        let carrier: T = T::FORTH;
+        let inv_carrier: T = T::ONE / carrier;
+        let neg_recip_tau:T = -inv_carrier / T::TAU;
+
+        (
+            (self.last * neg_recip_tau + T::ONE) * carrier,
+            mag_sq,
+        )
+    }
+}
+
+
+
+#[derive(Debug, Clone, Default)]
+pub struct QamDiscriminatorAccurate<T> {
+    last_angle: T,
+    last: T,
+}
+
+impl<T> Delay for QamDiscriminatorAccurate<T> {
+    fn delay(&self) -> usize {
+        0
+    }
+}
+
+impl<T:Real> Filter<(T, T)> for QamDiscriminatorAccurate<T>
+{
+    type Output = (T, T); // (angle, magnitude_squared)
+
+    fn filter(&mut self, sample: (T,T)) -> Self::Output {
+        if !sample.0.is_finite() || !sample.1.is_finite() {
+            return (T::NAN, T::NAN);
+        }
+
+        let (v_i, v_q) = (sample.0 * T::TWO, sample.1 * T::TWO);
+
+        let mag_sq = v_i * v_i + v_q * v_q;
+
+        self.last = if mag_sq.eq(&T::ZERO) {
+            // If the magnitude is zero then simply repeat the last value.
+            self.last
+        } else {
             let ret = -self.last_angle;
             self.last_angle = v_q.atan2(v_i);
             let ret = ret + self.last_angle;
@@ -118,19 +109,76 @@ where
             } else {
                 ret
             }
-        } else {
-            // Acceptable quality, no atan.
-            let ret = (v_q * self.v_i - v_i * self.v_q) / mag_sq;
-            self.v_i = v_i;
-            self.v_q = v_q;
-            ret
         };
 
+        let carrier: T = T::FORTH;
+        let inv_carrier: T = T::ONE / carrier;
+        let neg_recip_tau:T = -inv_carrier / T::TAU;
+
         (
-            self.filter_out
-                .filter((self.last * neg_recip_tau + T::ONE) * carrier),
+            (self.last * neg_recip_tau + T::ONE) * carrier,
             mag_sq,
         )
+    }
+}
+
+/// Carrier is assumed to be 0.25 (freq/4)
+///
+/// Output is (angle, magnitude_squared)
+#[derive(Clone, Debug)]
+pub struct Discriminator<T, FIQ=(), FOUT=()> {
+    qam: QamSplitFixed<T,FIQ>,
+    disc: QamDiscriminatorAccurate<T>,
+    filter_out: FOUT,
+}
+
+impl<T, FIQ: Delay, FOUT: Delay> Delay for Discriminator<T, FIQ, FOUT> {
+    fn delay(&self) -> usize {
+        self.filter_out.delay() + self.qam.delay() + self.disc.delay()
+    }
+}
+
+impl<T: Real, FIQ, FOUT> Discriminator<T, FIQ, FOUT> {
+    pub fn digital_default() -> Discriminator<T, FilterFir<T>, FilterFir<T>> {
+        Self::new(
+            FilterFirKernel::<T>::low_pass(15, 0.1, Window::Blackman).into_filter(),
+            FilterFirKernel::<T>::low_pass(15, 0.1, Window::Blackman).into_filter(),
+        )
+    }
+
+    pub fn analog_default() -> Discriminator<T, FilterFir<T>, FilterFir<T>> {
+        Self::new(
+            FilterFirKernel::<T>::low_pass(21, 0.25, Window::Blackman).into_filter(),
+            FilterFirKernel::<T>::low_pass(9, 0.25, Window::Blackman).into_filter(),
+        )
+    }
+
+    pub fn new<KIQ: Filter<T> + Clone, KOUT: Filter<T>>(
+        kiq: KIQ,
+        kout: KOUT,
+    ) -> Discriminator<T, KIQ, KOUT> {
+        Discriminator {
+            qam: QamSplitFixed::<_>::new(kiq),
+            disc: Default::default(),
+            filter_out: kout,
+        }
+    }
+}
+
+impl<T, FIQ: Filter<T, Output = T>, FOUT: Filter<T, Output = T>> Filter<T> for Discriminator<T, FIQ, FOUT>
+where
+    T: Real,
+{
+    type Output = (T, T); // (angle, magnitude_squared)
+
+    fn filter(&mut self, sample: T) -> Self::Output {
+        if !sample.is_finite() {
+            return (T::NAN, T::NAN);
+        }
+
+        let sample = self.disc.filter(self.qam.filter(sample));
+
+        (self.filter_out.filter(sample.0), sample.1)
     }
 }
 
@@ -145,7 +193,7 @@ mod tests {
         let amplitude = 1.0;
 
         let disc = FmMod::<f32>::new(amplitude);
-        let mut disc = disc.chain(Discriminator::<f32, ()>::analog_default());
+        let mut disc = disc.chain(Discriminator::<_>::analog_default());
 
         for f in &[0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4] {
             // Flush the filters.
@@ -193,7 +241,7 @@ mod tests {
         let amplitude = 1.0;
 
         let disc = FmMod::<f64>::new(amplitude);
-        let mut disc = disc.chain(Discriminator::<f64, ()>::analog_default());
+        let mut disc = disc.chain(Discriminator::<_>::analog_default());
 
         for f in &[0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4] {
             // Flush the filters.

@@ -29,7 +29,7 @@ pub struct FilterFirKernel<T> {
     delay: usize,
 }
 
-impl<T: Real> Kernel for FilterFirKernel<T> {
+impl<T: Real> IntoFilter<T> for FilterFirKernel<T> {
     type Filter = FilterFir<T>;
 
     fn into_filter(self) -> Self::Filter {
@@ -75,15 +75,7 @@ where
                 f64::sin(cutoff * tau * tn) / tn
             } else {
                 cutoff * tau
-            } * match window {
-                Window::Hanning => 0.5 - 0.5 * f64::cos((tau * ti) / ttaps),
-                Window::Hamming => 0.54 - 0.46 * f64::cos((tau * ti) / ttaps),
-                Window::Blackman => {
-                    0.42 - 0.5 * f64::cos((tau * ti) / ttaps)
-                        + 0.08 * f64::cos((2.0 * tau * ti) / ttaps)
-                }
-                Window::Rectangular => 1.0,
-            };
+            } * window.window_func(ti, ttaps);
 
             sum += val;
 
@@ -161,10 +153,13 @@ impl<T: Real> FilterFir<T> {
     }
 }
 
-impl<T: Real> OneToOne<T> for FilterFir<T> {
+impl<T: Real> Filter<T> for FilterFir<T> {
     type Output = T;
 
     fn filter(&mut self, sample: T) -> T {
+        if !sample.is_finite() {
+            return T::NAN;
+        }
         self.x.push(sample);
 
         return self
@@ -184,7 +179,7 @@ mod tests {
     fn rag_config() -> rag::Config {
         rag::Config::default()
             .with_offset(10)
-            .with_height(10)
+            .with_height(15)
             .with_width(70)
     }
 

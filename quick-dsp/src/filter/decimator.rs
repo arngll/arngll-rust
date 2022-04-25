@@ -46,7 +46,7 @@ impl Default for Decimator<f32, f32> {
     }
 }
 
-impl OneToOne<f32> for Decimator<f32, f32> {
+impl Filter<f32> for Decimator<f32, f32> {
     type Output = f32;
 
     fn filter(&mut self, sample: f32) -> Self::Output {
@@ -69,7 +69,7 @@ impl<F: Real> Decimator<F, i8> {
         }
     }
 }
-impl<F: Real> OneToOne<F> for Decimator<F, i8> {
+impl<F: Real> Filter<F> for Decimator<F, i8> {
     type Output = i8;
 
     fn filter(&mut self, sample: F) -> Self::Output {
@@ -102,7 +102,7 @@ impl<F: Real> Decimator<F, u8> {
         }
     }
 }
-impl<F: Real> OneToOne<F> for Decimator<F, u8> {
+impl<F: Real> Filter<F> for Decimator<F, u8> {
     type Output = u8;
 
     fn filter(&mut self, sample: F) -> Self::Output {
@@ -135,7 +135,7 @@ impl<F: Real> Decimator<F, i16> {
         }
     }
 }
-impl<F: Real> OneToOne<F> for Decimator<F, i16> {
+impl<F: Real> Filter<F> for Decimator<F, i16> {
     type Output = i16;
 
     fn filter(&mut self, sample: F) -> Self::Output {
@@ -168,7 +168,7 @@ impl<F: Real> Decimator<F, u16> {
         }
     }
 }
-impl<F: Real> OneToOne<F> for Decimator<F, u16> {
+impl<F: Real> Filter<F> for Decimator<F, u16> {
     type Output = u16;
 
     fn filter(&mut self, sample: F) -> Self::Output {

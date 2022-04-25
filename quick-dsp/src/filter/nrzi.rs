@@ -37,7 +37,7 @@ impl NrziEncode {
     }
 }
 
-impl OneToOne<bool> for NrziEncode {
+impl Filter<bool> for NrziEncode {
     type Output = bool;
 
     fn filter(&mut self, sample: bool) -> Self::Output {
@@ -65,7 +65,7 @@ impl NrziDecode {
     }
 }
 
-impl OneToOne<bool> for NrziDecode {
+impl Filter<bool> for NrziDecode {
     type Output = bool;
 
     fn filter(&mut self, sample: bool) -> Self::Output {
@@ -92,7 +92,7 @@ mod tests {
     fn nrzi_pipe() {
         let encode = NrziEncode::new();
         let decode = NrziDecode::new();
-        let mut chained = OneToOneExt::<bool>::chain(encode, decode);
+        let mut chained = FilterExt::<bool>::chain(encode, decode);
 
         assert_eq!(chained.filter(true), true);
         assert_eq!(chained.filter(false), false);
