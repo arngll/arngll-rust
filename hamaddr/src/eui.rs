@@ -57,6 +57,17 @@ impl Eui64 {
     pub const fn new(addr: [u8; 8]) -> Eui64 {
         Eui64(addr)
     }
+
+    pub fn try_to_eui48(self) -> Option<Eui48> {
+        if self.0[3] == 0xFF && self.0[4] == 0xFE {
+            let mut bytes = [0; 6];
+            bytes[..3].copy_from_slice(&self.0[..3]);
+            bytes[3..6].copy_from_slice(&self.0[5..8]);
+            Some(Eui48(bytes))
+        } else {
+            None
+        }
+    }
 }
 
 /// Formats an Eui64 for display.
@@ -80,6 +91,12 @@ impl From<&Eui48> for Eui64 {
         bytes[4] = 0xFE; // See RFC 4291, App A.
         bytes[5..].copy_from_slice(&eui48.0[3..]);
         Eui64(bytes)
+    }
+}
+
+impl From<Eui48> for Eui64 {
+    fn from(eui48: Eui48) -> Self {
+        Eui64::from(&eui48)
     }
 }
 

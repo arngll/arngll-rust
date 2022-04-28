@@ -34,8 +34,8 @@ mod hdlc;
 mod iir;
 mod iter;
 mod nrzi;
-mod resample;
 mod qam;
+mod resample;
 
 pub use boxfilter::*;
 pub use decimator::*;
@@ -47,8 +47,8 @@ pub use hdlc::*;
 pub use iir::*;
 pub use iter::*;
 pub use nrzi::*;
-pub use resample::*;
 pub use qam::*;
+pub use resample::*;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum Window {
@@ -63,34 +63,34 @@ pub enum Window {
 }
 
 pub trait WindowFunc {
-    fn window_func(&self, t: f64, l:f64) -> f64;
+    fn window_func(&self, t: f64, l: f64) -> f64;
 }
 
 impl WindowFunc for Window {
     fn window_func(&self, t: f64, l: f64) -> f64 {
         match self {
             Window::Rectangular => 1.0,
-            Window::Bartlett => 2.0*((l/2.0)+t.abs())/l,
-            Window::Hann => 0.5 - 0.5 * f64::cos((f64::PI*2.0 * t) / l),
-            Window::Hamming => 0.54 - 0.46 * f64::cos((f64::PI*2.0 * t) / l),
+            Window::Bartlett => 2.0 * ((l / 2.0) + t.abs()) / l,
+            Window::Hann => 0.5 - 0.5 * f64::cos((f64::PI * 2.0 * t) / l),
+            Window::Hamming => 0.54 - 0.46 * f64::cos((f64::PI * 2.0 * t) / l),
             Window::Blackman => {
-                0.42 - 0.5 * f64::cos((f64::PI*2.0 * t) / l)
-                    + 0.08 * f64::cos((f64::PI*4.0 * t) / l)
+                0.42 - 0.5 * f64::cos((f64::PI * 2.0 * t) / l)
+                    + 0.08 * f64::cos((f64::PI * 4.0 * t) / l)
             }
             Window::Nuttall => {
-                0.355768 - 0.487396 * f64::cos((f64::PI*2.0 * t) / l)
-                    + 0.144232 * f64::cos((f64::PI*4.0 * t) / l)
-                    - 0.012604 * f64::cos((f64::PI*6.0 * t) / l)
+                0.355768 - 0.487396 * f64::cos((f64::PI * 2.0 * t) / l)
+                    + 0.144232 * f64::cos((f64::PI * 4.0 * t) / l)
+                    - 0.012604 * f64::cos((f64::PI * 6.0 * t) / l)
             }
             Window::BlackmanNuttall => {
-                0.3635819 - 0.4891775 * f64::cos((f64::PI*2.0 * t) / l)
-                    + 0.1365995 * f64::cos((f64::PI*4.0 * t) / l)
-                    - 0.0106411 * f64::cos((f64::PI*6.0 * t) / l)
+                0.3635819 - 0.4891775 * f64::cos((f64::PI * 2.0 * t) / l)
+                    + 0.1365995 * f64::cos((f64::PI * 4.0 * t) / l)
+                    - 0.0106411 * f64::cos((f64::PI * 6.0 * t) / l)
             }
             Window::BlackmanHarris => {
-                0.35875 - 0.48829 * f64::cos((f64::PI*2.0 * t) / l)
-                    + 0.14128 * f64::cos((f64::PI*4.0 * t) / l)
-                    - 0.01168 * f64::cos((f64::PI*6.0 * t) / l)
+                0.35875 - 0.48829 * f64::cos((f64::PI * 2.0 * t) / l)
+                    + 0.14128 * f64::cos((f64::PI * 4.0 * t) / l)
+                    - 0.01168 * f64::cos((f64::PI * 6.0 * t) / l)
             }
         }
     }
@@ -169,11 +169,11 @@ pub trait FilterExt<T>: Filter<T> + Sized {
 }
 impl<T: Filter<A>, A> FilterExt<A> for T {}
 
-pub type BoxedFilter<'a, In, Out=In> = Box<dyn Filter<In, Output = Out> + 'a>;
+pub type BoxedFilter<'a, In, Out = In> = Box<dyn Filter<In, Output = Out> + 'a>;
 
-impl<F,T> Filter<T> for Box<F>
+impl<F, T> Filter<T> for Box<F>
 where
-    F: Filter<T>
+    F: Filter<T>,
 {
     type Output = F::Output;
 
@@ -182,8 +182,7 @@ where
     }
 }
 
-impl<F:Delay> Delay for Box<F>
-{
+impl<F: Delay> Delay for Box<F> {
     fn delay(&self) -> usize {
         self.as_ref().delay()
     }

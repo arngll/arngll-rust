@@ -84,7 +84,7 @@ fn run_benchmark<P: AsRef<Path>>(path: P) -> u32 {
         path.as_ref().to_str().unwrap(),
         framecount,
         badframecount,
-        framecount+badframecount
+        framecount + badframecount
     );
     framecount
 }

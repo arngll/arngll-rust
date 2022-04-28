@@ -68,6 +68,46 @@ mod ham_addr_tests {
     }
 
     #[test]
+    fn test_ham_addr_to_eui64_12_char_hack() {
+        let addr = "KJ6QOH-23".parse::<HamAddr>().unwrap();
+        let eui64: Eui64 = addr.try_into().unwrap();
+        assert_eq!(eui64.to_string(), "22:46:71:ff:fe:6c:a0:f2");
+        assert_eq!(HamAddr::try_from(eui64).unwrap(), addr);
+
+        let eui64 = Eui64([0x02, 0x46, 0x71, 0x6C, 0xA0, 0xF2, 0x20, 0x00]);
+        assert_eq!(HamAddr::try_from(eui64).unwrap().to_string(), "KJ6QOH-2X");
+
+        let addr = "KJ6QOH-99".parse::<HamAddr>().unwrap();
+        let eui64: Eui64 = addr.try_into().unwrap();
+        assert_eq!(eui64.to_string(), "02:46:71:6c:a0:f3:44:00");
+        assert_eq!(HamAddr::try_from(eui64).unwrap(), addr);
+    }
+
+    #[test]
+    fn test_ham_addr_to_eui48_9_char_hack() {
+        let addr = "KJ6QOH-23".parse::<HamAddr>().unwrap();
+        let eui48: Eui48 = addr.try_into().unwrap();
+        assert_eq!(eui48.to_string(), "22:46:71:6c:a0:f2");
+        assert_eq!(HamAddr::try_from(eui48).unwrap(), addr);
+
+        let addr = "KJ6QOH-2X".parse::<HamAddr>().unwrap();
+        let eui48_result = Eui48::try_from(addr);
+        assert!(
+            eui48_result.is_err(),
+            "KJ6QOH-2X parsed to EUI48: {}",
+            eui48_result.unwrap()
+        );
+
+        let addr = "KJ6QOH-99".parse::<HamAddr>().unwrap();
+        let eui48_result = Eui48::try_from(addr);
+        assert!(
+            eui48_result.is_err(),
+            "KJ6QOH-99 parsed to EUI48: {}",
+            eui48_result.unwrap()
+        );
+    }
+
+    #[test]
     fn test_ham_addr_to_eui64() {
         let addr = "KZ2X-1".parse::<HamAddr>().unwrap();
         let eui64: Eui64 = addr.try_into().unwrap();

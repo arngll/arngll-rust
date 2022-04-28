@@ -30,7 +30,7 @@ use std::fmt::{Debug, Formatter};
 pub const BELL202_RATE: u32 = 1200;
 pub const BELL202_MARK: u32 = 1200;
 pub const BELL202_SPACE: u32 = 2200;
-pub const BELL202_OPTIMAL_SAMPLE_RATE: u32 = (BELL202_MARK+BELL202_SPACE)*2+349;
+pub const BELL202_OPTIMAL_SAMPLE_RATE: u32 = (BELL202_MARK + BELL202_SPACE) * 2 + 349;
 
 /// Bell 202 decoder.
 ///

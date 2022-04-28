@@ -64,7 +64,11 @@ fn find_device<I: IntoIterator<Item = cpal::Device>>(
         .filter_map(|d| Some((d.name().ok()?.to_lowercase(), d)))
         .collect::<Vec<_>>();
 
-    info!("Looking for {:?} in {:#?}", name, devs.iter().map(|x|x.0.as_str()).collect::<Vec<_>>());
+    info!(
+        "Looking for {:?} in {:#?}",
+        name,
+        devs.iter().map(|x| x.0.as_str()).collect::<Vec<_>>()
+    );
 
     // Try exact
     if let Some((i, _)) = devs.iter().enumerate().find(|(_, (n, _))| n == &lc_name) {
@@ -72,9 +76,9 @@ fn find_device<I: IntoIterator<Item = cpal::Device>>(
     }
 
     // Try integer.
-    if let Some(i) = usize::from_str_radix(name,10).ok() {
+    if let Some(i) = usize::from_str_radix(name, 10).ok() {
         if i != 0 && i - 1 < devs.len() {
-            return Some(devs.remove(i-1).1);
+            return Some(devs.remove(i - 1).1);
         }
     }
 
@@ -147,14 +151,34 @@ fn main() {
     {
         // Work around for weird cpal issues.
         let host = cpal::default_host();
-        let _input_device_names = host.input_devices().expect("Unable to list input devices").into_iter().filter_map(|x|x.name().ok()).collect::<Vec<_>>();
-        let _output_device_names = host.output_devices().expect("Unable to list input devices").into_iter().filter_map(|x|x.name().ok()).collect::<Vec<_>>();
+        let _input_device_names = host
+            .input_devices()
+            .expect("Unable to list input devices")
+            .into_iter()
+            .filter_map(|x| x.name().ok())
+            .collect::<Vec<_>>();
+        let _output_device_names = host
+            .output_devices()
+            .expect("Unable to list input devices")
+            .into_iter()
+            .filter_map(|x| x.name().ok())
+            .collect::<Vec<_>>();
     }
 
     if opt.list_devices {
         let host = cpal::default_host();
-        let input_device_names = host.input_devices().expect("Unable to list input devices").into_iter().filter_map(|x|x.name().ok()).collect::<Vec<_>>();
-        let output_device_names = host.output_devices().expect("Unable to list input devices").into_iter().filter_map(|x|x.name().ok()).collect::<Vec<_>>();
+        let input_device_names = host
+            .input_devices()
+            .expect("Unable to list input devices")
+            .into_iter()
+            .filter_map(|x| x.name().ok())
+            .collect::<Vec<_>>();
+        let output_device_names = host
+            .output_devices()
+            .expect("Unable to list input devices")
+            .into_iter()
+            .filter_map(|x| x.name().ok())
+            .collect::<Vec<_>>();
         println!("Input Devices: {:#?}", input_device_names);
         println!("Output Devices: {:#?}", output_device_names);
         return;

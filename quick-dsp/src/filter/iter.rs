@@ -19,7 +19,7 @@
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-use crate::filter::{HdlcEncoderIter, NrziEncode, Filter, ResampleNN};
+use crate::filter::{Filter, HdlcEncoderIter, NrziEncode, ResampleNN};
 
 /// Transforms an iterator over bytes into an iterator over bits,
 /// most significant bit first.

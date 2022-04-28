@@ -19,8 +19,8 @@
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-use std::marker::PhantomData;
 use super::*;
+use std::marker::PhantomData;
 
 /// QAM Splitter.
 ///
@@ -28,7 +28,7 @@ use super::*;
 ///
 /// Output is (i, q)
 #[derive(Clone, Debug)]
-pub struct QamSplitFixed<T, F=()> {
+pub struct QamSplitFixed<T, F = ()> {
     current_step: u8,
     filter_i: F,
     filter_q: F,
@@ -43,20 +43,14 @@ impl<T, F: Delay> Delay for QamSplitFixed<T, F> {
 
 impl<T: Real, F> QamSplitFixed<T, F> {
     pub fn digital_default() -> QamSplitFixed<T, FilterFir<T>> {
-        Self::new(
-            FilterFirKernel::<T>::low_pass(15, 0.1, Window::Blackman).into_filter(),
-        )
+        Self::new(FilterFirKernel::<T>::low_pass(15, 0.1, Window::Blackman).into_filter())
     }
 
     pub fn analog_default() -> QamSplitFixed<T, FilterFir<T>> {
-        Self::new(
-            FilterFirKernel::<T>::low_pass(21, 0.25, Window::Blackman).into_filter(),
-        )
+        Self::new(FilterFirKernel::<T>::low_pass(21, 0.25, Window::Blackman).into_filter())
     }
 
-    pub fn new<K: Filter<T> + Clone>(
-        kiq: K
-    ) -> QamSplitFixed<T, K> {
+    pub fn new<K: Filter<T> + Clone>(kiq: K) -> QamSplitFixed<T, K> {
         QamSplitFixed {
             current_step: 0,
             filter_i: kiq.clone(),
