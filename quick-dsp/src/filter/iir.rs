@@ -37,7 +37,7 @@ fn calc_chebyshev(
     //rp = -cos(M_PI/(poles*2.0) + (p-1.0)*M_PI/poles);
     //ip = sin(M_PI/(poles*2.0) + (p-1.0)*M_PI/poles);
     let mut rp = -(f64::PI / f64::from_usize(poles * 2)
-        +  f64::from_usize(p - 1) * f64::PI / f64::from_usize(poles))
+        + f64::from_usize(p - 1) * f64::PI / f64::from_usize(poles))
     .cos();
     let mut ip = (f64::PI / f64::from_usize(poles * 2)
         + f64::from_usize(p - 1) * f64::PI / f64::from_usize(poles))
@@ -206,13 +206,8 @@ impl<T: Real, const TAPS: usize> ChebyshevKernel<T, TAPS> {
 }
 
 impl<T: Real, const TAPS: usize> ChebyshevKernel<T, TAPS> {
-    fn chebyshev(
-        cutoff1: f64,
-        cutoff2: f64,
-        ripple: f64,
-        filter_type: FilterType,
-    ) -> Self {
-        let poles = (TAPS-1) as usize;
+    fn chebyshev(cutoff1: f64, cutoff2: f64, ripple: f64, filter_type: FilterType) -> Self {
+        let poles = (TAPS - 1) as usize;
         let mut ret = Self {
             a: [T::ZERO; TAPS],
             b: [T::ZERO; TAPS],
@@ -233,8 +228,16 @@ impl<T: Real, const TAPS: usize> ChebyshevKernel<T, TAPS> {
                 tb.insert(0, T::ZERO);
 
                 let (a_x, b_x) = calc_chebyshev(poles, p, cutoff1, cutoff2, ripple, filter_type);
-                let a_x = [T::from_f64(a_x[0]),T::from_f64(a_x[1]),T::from_f64(a_x[2])];
-                let b_x = [T::from_f64(b_x[0]),T::from_f64(b_x[1]),T::from_f64(b_x[2])];
+                let a_x = [
+                    T::from_f64(a_x[0]),
+                    T::from_f64(a_x[1]),
+                    T::from_f64(a_x[2]),
+                ];
+                let b_x = [
+                    T::from_f64(b_x[0]),
+                    T::from_f64(b_x[1]),
+                    T::from_f64(b_x[2]),
+                ];
                 for (i, (a, b)) in ret.a.iter_mut().zip(ret.b.iter_mut()).enumerate() {
                     *a = a_x[0] * ta[i + 2] + a_x[1] * ta[i + 1] + a_x[2] * ta[i + 0];
                     *b = tb[i + 2] - b_x[1] * tb[i + 1] - b_x[2] * tb[i + 0];
@@ -276,7 +279,9 @@ impl<T: Real, const TAPS: usize> ChebyshevKernel<T, TAPS> {
     }
 }
 
-impl<T: Real, const TAPS: usize> From<ChebyshevKernel<T, TAPS>> for FilterIir<ChebyshevKernel<T, TAPS>> {
+impl<T: Real, const TAPS: usize> From<ChebyshevKernel<T, TAPS>>
+    for FilterIir<ChebyshevKernel<T, TAPS>>
+{
     fn from(kernel: ChebyshevKernel<T, TAPS>) -> Self {
         FilterIir::from_kernel(kernel)
     }
@@ -395,7 +400,7 @@ mod tests {
 
     #[test]
     fn filter_iir_dataset_test3() {
-        let filter = FilterChebyshev::<f64,5>::low_pass(0.25, 0.5);
+        let filter = FilterChebyshev::<f64, 5>::low_pass(0.25, 0.5);
         println!("filter_iir_dataset_test3: {:#?}", filter);
 
         assert!((filter.kernel.a()[0] - 0.07015301).abs() < 0.00001);
@@ -412,7 +417,7 @@ mod tests {
 
     #[test]
     fn filter_iir_low_pass_histogram_2_pole() {
-        let kernel = ChebyshevKernel::<_,3>::low_pass(0.25f64, 0.5f64);
+        let kernel = ChebyshevKernel::<_, 3>::low_pass(0.25f64, 0.5f64);
 
         let fresponse = (0..50)
             .into_iter()
@@ -429,7 +434,7 @@ mod tests {
 
     #[test]
     fn filter_iir_low_pass_histogram_4_pole() {
-        let kernel = ChebyshevKernel::<_,5>::low_pass(0.25f64, 0.5f64);
+        let kernel = ChebyshevKernel::<_, 5>::low_pass(0.25f64, 0.5f64);
 
         let fresponse = (0..50)
             .into_iter()
@@ -446,7 +451,7 @@ mod tests {
 
     #[test]
     fn filter_iir_low_pass_histogram_6_pole() {
-        let kernel = ChebyshevKernel::<_,7>::low_pass(0.25f64, 0.5f64);
+        let kernel = ChebyshevKernel::<_, 7>::low_pass(0.25f64, 0.5f64);
 
         let fresponse = (0..50)
             .into_iter()
@@ -463,7 +468,7 @@ mod tests {
 
     #[test]
     fn filter_iir_high_pass_histogram_2_pole() {
-        let kernel = ChebyshevKernel::<_,3>::high_pass(0.25f64, 0.5f64);
+        let kernel = ChebyshevKernel::<_, 3>::high_pass(0.25f64, 0.5f64);
 
         let fresponse = (1..=50)
             .into_iter()
@@ -480,7 +485,7 @@ mod tests {
 
     #[test]
     fn filter_iir_high_pass_histogram_4_pole() {
-        let kernel = ChebyshevKernel::<_,5>::high_pass(0.25f64, 0.5f64);
+        let kernel = ChebyshevKernel::<_, 5>::high_pass(0.25f64, 0.5f64);
 
         let fresponse = (1..=50)
             .into_iter()
@@ -497,7 +502,7 @@ mod tests {
 
     #[test]
     fn filter_iir_high_pass_histogram_6_pole() {
-        let kernel = ChebyshevKernel::<_,7>::high_pass(0.25f64, 0.5f64);
+        let kernel = ChebyshevKernel::<_, 7>::high_pass(0.25f64, 0.5f64);
 
         let fresponse = (1..=50)
             .into_iter()
@@ -514,11 +519,11 @@ mod tests {
 
     #[test]
     fn filter_iir_low_pass_performance_2pole() {
-        let gain_h = calc_gain(FilterChebyshev::<_,3>::low_pass( 0.25f64, 0.5f64), 0.45f64);
+        let gain_h = calc_gain(FilterChebyshev::<_, 3>::low_pass(0.25f64, 0.5f64), 0.45f64);
         println!("filter_iir_low_pass: 2-pole gain_h: {:.2}dB", gain_h);
         assert!(gain_h < -15.0);
 
-        let gain_l = calc_gain(FilterChebyshev::<_,3>::low_pass( 0.25f64, 0.5f64), 0.05f64);
+        let gain_l = calc_gain(FilterChebyshev::<_, 3>::low_pass(0.25f64, 0.5f64), 0.05f64);
         println!("filter_iir_low_pass: 2-pole gain_l: {:.2}dB", gain_l);
         assert!(gain_l > -0.5);
         assert!(gain_l < 0.01);
@@ -526,11 +531,11 @@ mod tests {
 
     #[test]
     fn filter_iir_low_pass_performance_4pole() {
-        let gain_h = calc_gain(FilterChebyshev::<_,5>::low_pass( 0.25f64, 0.5f64), 0.45f64);
+        let gain_h = calc_gain(FilterChebyshev::<_, 5>::low_pass(0.25f64, 0.5f64), 0.45f64);
         println!("filter_iir_low_pass: 4-pole gain_h: {:.2}dB", gain_h);
         assert!(gain_h < -35.0);
 
-        let gain_l = calc_gain(FilterChebyshev::<_,5>::low_pass( 0.25f64, 0.5f64), 0.05f64);
+        let gain_l = calc_gain(FilterChebyshev::<_, 5>::low_pass(0.25f64, 0.5f64), 0.05f64);
         println!("filter_iir_low_pass: 4-pole gain_l: {:.2}dB", gain_l);
         assert!(gain_l > -0.5);
         assert!(gain_l < 0.01);
@@ -538,11 +543,11 @@ mod tests {
 
     #[test]
     fn filter_iir_low_pass_performance_6pole() {
-        let gain_h = calc_gain(FilterChebyshev::<_,7>::low_pass( 0.25f64, 0.5f64), 0.45f64);
+        let gain_h = calc_gain(FilterChebyshev::<_, 7>::low_pass(0.25f64, 0.5f64), 0.45f64);
         println!("filter_iir_low_pass: 6-pole gain_h: {:.2}dB", gain_h);
         assert!(gain_h < -55.0);
 
-        let gain_l = calc_gain(FilterChebyshev::<_,7>::low_pass( 0.25f64, 0.5f64), 0.05f64);
+        let gain_l = calc_gain(FilterChebyshev::<_, 7>::low_pass(0.25f64, 0.5f64), 0.05f64);
         println!("filter_iir_low_pass: 6-pole gain_l: {:.2}dB", gain_l);
         assert!(gain_l > -0.5);
         assert!(gain_l < 0.01);
@@ -551,11 +556,11 @@ mod tests {
     #[test]
     //    #[ignore] // Currently failing.
     fn filter_iir_high_pass_performance_2pole() {
-        let gain_l = calc_gain(FilterChebyshev::<_,3>::high_pass( 0.25f64, 0.5f64), 0.05f64);
+        let gain_l = calc_gain(FilterChebyshev::<_, 3>::high_pass(0.25f64, 0.5f64), 0.05f64);
         println!("filter_iir_high_pass: 2-pole gain_l: {:.2}dB", gain_l);
         assert!(gain_l < -16.0);
 
-        let gain_h = calc_gain(FilterChebyshev::<_,3>::high_pass( 0.25f64, 0.5f64), 0.5f64);
+        let gain_h = calc_gain(FilterChebyshev::<_, 3>::high_pass(0.25f64, 0.5f64), 0.5f64);
         println!("filter_iir_high_pass: 2-pole gain_h: {:.2}dB", gain_h);
         assert!(gain_h > -0.5);
         assert!(gain_h < 0.01);
@@ -564,11 +569,11 @@ mod tests {
     #[test]
     //    #[ignore] // Currently failing.
     fn filter_iir_high_pass_performance_4pole() {
-        let gain_l = calc_gain(FilterChebyshev::<_,5>::high_pass( 0.25f64, 0.5f64), 0.05f64);
+        let gain_l = calc_gain(FilterChebyshev::<_, 5>::high_pass(0.25f64, 0.5f64), 0.05f64);
         println!("filter_iir_high_pass: 4-pole gain_l: {:.2}dB", gain_l);
         assert!(gain_l < -35.0);
 
-        let gain_h = calc_gain(FilterChebyshev::<_,5>::high_pass( 0.25f64, 0.5f64), 0.5f64);
+        let gain_h = calc_gain(FilterChebyshev::<_, 5>::high_pass(0.25f64, 0.5f64), 0.5f64);
         println!("filter_iir_high_pass: 4-pole gain_h: {:.2}dB", gain_h);
         assert!(gain_h > -0.5);
         assert!(gain_h < 0.01);
@@ -577,11 +582,11 @@ mod tests {
     #[test]
     //    #[ignore] // Currently failing.
     fn filter_iir_high_pass_performance_6pole() {
-        let gain_l = calc_gain(FilterChebyshev::<_,7>::high_pass( 0.25f64, 0.5f64), 0.05f64);
+        let gain_l = calc_gain(FilterChebyshev::<_, 7>::high_pass(0.25f64, 0.5f64), 0.05f64);
         println!("filter_iir_high_pass: 6-pole gain_l: {:.2}dB", gain_l);
         assert!(gain_l < -52.0);
 
-        let gain_h = calc_gain(FilterChebyshev::<_,7>::high_pass( 0.25f64, 0.5f64), 0.5f64);
+        let gain_h = calc_gain(FilterChebyshev::<_, 7>::high_pass(0.25f64, 0.5f64), 0.5f64);
         println!("filter_iir_high_pass: 6-pole gain_h: {:.2}dB", gain_h);
         assert!(gain_h > -0.5);
         assert!(gain_h < 0.01);

@@ -351,6 +351,75 @@ impl HamAddr {
     pub fn to_addr_string(&self) -> String {
         format!("{:?}", self)
     }
+
+    /// Returns the length of the encoded callsign
+    fn callsign_len(&self) -> Option<usize> {
+        if self.chunk(3) != 0 {
+            Some(9 + HamCharChunk::try_from(self.chunk(3)).ok()?.len())
+        } else if self.chunk(2) != 0 {
+            Some(6 + HamCharChunk::try_from(self.chunk(2)).ok()?.len())
+        } else if self.chunk(1) != 0 {
+            Some(4 + HamCharChunk::try_from(self.chunk(1)).ok()?.len())
+        } else {
+            Some(HamCharChunk::try_from(self.chunk(0)).ok()?.len())
+        }
+    }
+
+    fn apply_eui48_hack(mut self) -> Option<Self> {
+        match self.callsign_len() {
+            Some(len) if len < 9 => Some(self),
+            Some(9) => HamCharChunk::try_from(self.chunk(2))
+                .unwrap()
+                .try_apply_eui_hack()
+                .and_then(|chunk| {
+                    self.0[4..6].copy_from_slice(&u16::to_be_bytes(chunk.into()));
+                    Some(self)
+                }),
+            _ => None,
+        }
+    }
+
+    fn apply_eui64_hack(mut self) -> Option<Self> {
+        match self.callsign_len() {
+            Some(len) if len < 12 => Some(self),
+            Some(12) => HamCharChunk::try_from(self.chunk(3))
+                .unwrap()
+                .try_apply_eui_hack()
+                .and_then(|chunk| {
+                    self.0[6..8].copy_from_slice(&u16::to_be_bytes(chunk.into()));
+                    Some(self)
+                }),
+            _ => None,
+        }
+    }
+
+    fn reverse_eui48_hack(mut self) -> Option<Self> {
+        match self.callsign_len() {
+            Some(len) if len < 9 => Some(self),
+            Some(9) => HamCharChunk::try_from(self.chunk(2))
+                .unwrap()
+                .try_reverse_eui_hack()
+                .and_then(|chunk| {
+                    self.0[4..6].copy_from_slice(&u16::to_be_bytes(chunk.into()));
+                    Some(self)
+                }),
+            _ => None,
+        }
+    }
+
+    fn reverse_eui64_hack(mut self) -> Option<Self> {
+        match self.callsign_len() {
+            Some(len) if len < 12 => Some(self),
+            Some(12) => HamCharChunk::try_from(self.chunk(3))
+                .unwrap()
+                .try_reverse_eui_hack()
+                .and_then(|chunk| {
+                    self.0[6..8].copy_from_slice(&u16::to_be_bytes(chunk.into()));
+                    Some(self)
+                }),
+            _ => None,
+        }
+    }
 }
 
 /// The Display formatter for `HamAddr` prints out the address
@@ -427,23 +496,18 @@ impl TryFrom<HamAddr> for Eui64 {
             HamAddrType::Empty => Ok(Eui64::EMPTY),
             HamAddrType::Broadcast => Ok(Eui64::BROADCAST),
             HamAddrType::Callsign => {
-                if value.0[7] & 0b0111 != 0 {
-                    bail!("HamAddr too big");
+                if let Ok(ret) = Eui48::try_from(value) {
+                    return Ok(ret.into());
                 }
 
-                // If the last chunk is empty and the last three
-                // bits on the second-to-last chunk are zero,
-                // then the address can be rendered as an EUI-48.
-                let is_small = value.chunk(3) == 0 && (value.chunk(2) & 0b0111) == 0;
-                let mut bytes = value.octets();
-                let first_byte = std::mem::take(&mut bytes[if is_small { 5 } else { 7 }]);
+                let value = value
+                    .apply_eui64_hack()
+                    .ok_or(anyhow::Error::msg("HamAddr too big"))?;
+
+                let mut bytes = [0u8; 8];
+                bytes.copy_from_slice(&value.octets()[..8]);
                 bytes.rotate_right(1);
-                bytes[0] = (first_byte & 0b1111_1000) | 0b0010;
-                if is_small {
-                    bytes[3..].rotate_right(2);
-                    bytes[3] = 0xFF;
-                    bytes[4] = 0xFE;
-                }
+                bytes[0] = (bytes[0] & 0b1111_1000) | 0b0010;
                 Ok(Eui64::new(bytes))
             }
 
@@ -462,10 +526,10 @@ impl TryFrom<HamAddr> for Eui48 {
             HamAddrType::Empty => Ok(Eui48::EMPTY),
             HamAddrType::Broadcast => Ok(Eui48::BROADCAST),
             HamAddrType::Callsign => {
-                let is_small = value.chunk(3) == 0 && (value.chunk(2) & 0b0111) == 0;
-                if !is_small {
-                    bail!("HamAddr too big");
-                }
+                let value = value
+                    .apply_eui48_hack()
+                    .ok_or(anyhow::Error::msg("HamAddr too big"))?;
+
                 let mut bytes = [0u8; 6];
                 bytes.copy_from_slice(&value.octets()[..6]);
                 bytes.rotate_right(1);
@@ -518,13 +582,13 @@ impl TryFrom<Eui48> for HamAddr {
             octets.rotate_left(1);
             let mut bytes = [0; 8];
             bytes[..6].copy_from_slice(&octets);
-            let ret = HamAddr(bytes);
+            let ret = HamAddr(bytes).reverse_eui48_hack().unwrap();
             match ret.get_type() {
                 HamAddrType::Callsign => Ok(ret),
-                _ => bail!("Cannot convert from EUI48 to ham addr"),
+                _ => bail!("EUI48 did not contain a callsign."),
             }
         } else {
-            bail!("Cannot convert from EUI64 to ham addr")
+            bail!("EUI48 did not contain a callsign.")
         }
     }
 }
@@ -539,24 +603,20 @@ impl TryFrom<Eui64> for HamAddr {
         if value == Eui64::BROADCAST {
             return Ok(HamAddr::BROADCAST);
         }
+        if let Some(eui48) = value.try_to_eui48() {
+            return HamAddr::try_from(eui48);
+        }
         let mut bytes = value.0;
         if bytes[0] & 0b111 == 0b010 {
             bytes[0] &= 0b1111_1101;
-            if bytes[3] == 0xFF && bytes[4] == 0xFE {
-                bytes[3..].rotate_left(2);
-                bytes[6] = 0;
-                bytes[7] = 0;
-                bytes[..6].rotate_left(1);
-            } else {
-                bytes.rotate_left(1);
-            }
-            let ret = HamAddr(bytes);
+            bytes.rotate_left(1);
+            let ret = HamAddr(bytes).reverse_eui64_hack().unwrap();
             match ret.get_type() {
                 HamAddrType::Callsign => Ok(ret),
-                _ => bail!("Cannot convert from EUI64 to ham addr"),
+                _ => bail!("EUI64 did not contain a callsign."),
             }
         } else {
-            bail!("Cannot convert from EUI64 to ham addr")
+            bail!("EUI64 did not contain a callsign.")
         }
     }
 }

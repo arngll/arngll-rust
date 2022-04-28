@@ -144,6 +144,28 @@ impl HamChar {
     pub const fn is_esc(&self) -> bool {
         self.0 == Self::ESC.0
     }
+
+    pub fn try_apply_eui_hack(self) -> Option<Self> {
+        match self {
+            HamChar(0) => Some(HamChar(0)),
+            HamChar(28) => Some(HamChar(8)),
+            HamChar(29) => Some(HamChar(16)),
+            HamChar(30) => Some(HamChar(24)),
+            HamChar(31) => Some(HamChar(32)),
+            _ => None,
+        }
+    }
+
+    pub fn try_reverse_eui_hack(self) -> Option<Self> {
+        match self {
+            HamChar(0) => Some(HamChar(0)),
+            HamChar(8) => Some(HamChar(28)),
+            HamChar(16) => Some(HamChar(29)),
+            HamChar(24) => Some(HamChar(30)),
+            HamChar(32) => Some(HamChar(31)),
+            _ => None,
+        }
+    }
 }
 
 impl TryFrom<char> for HamChar {
@@ -178,6 +200,36 @@ impl Display for HamChar {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, Default)]
 pub(crate) struct HamCharChunk(pub [HamChar; 3]);
 
+impl HamCharChunk {
+    pub const fn len(self) -> usize {
+        if self.0[0].is_nul() {
+            return 0;
+        }
+        if self.0[1].is_nul() {
+            return 1;
+        }
+        if self.0[2].is_nul() {
+            return 2;
+        }
+        return 3;
+    }
+
+    pub fn try_apply_eui_hack(self) -> Option<Self> {
+        Some(HamCharChunk([
+            self.0[0],
+            self.0[1],
+            self.0[2].try_apply_eui_hack()?,
+        ]))
+    }
+
+    pub fn try_reverse_eui_hack(self) -> Option<Self> {
+        Some(HamCharChunk([
+            self.0[0],
+            self.0[1],
+            self.0[2].try_reverse_eui_hack()?,
+        ]))
+    }
+}
 impl From<HamCharChunk> for u16 {
     fn from(chunk: HamCharChunk) -> Self {
         (chunk.0[0].0 as u16) * 1600 + (chunk.0[1].0 as u16) * 40 + (chunk.0[2].0 as u16)

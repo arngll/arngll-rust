@@ -34,11 +34,10 @@ impl<T> Delay for QamDiscriminatorFast<T> {
     }
 }
 
-impl<T:Real> Filter<(T, T)> for QamDiscriminatorFast<T>
-{
+impl<T: Real> Filter<(T, T)> for QamDiscriminatorFast<T> {
     type Output = (T, T); // (angle, magnitude_squared)
 
-    fn filter(&mut self, sample: (T,T)) -> Self::Output {
+    fn filter(&mut self, sample: (T, T)) -> Self::Output {
         if !sample.0.is_finite() || !sample.1.is_finite() {
             return (T::NAN, T::NAN);
         }
@@ -59,16 +58,11 @@ impl<T:Real> Filter<(T, T)> for QamDiscriminatorFast<T>
 
         let carrier: T = T::FORTH;
         let inv_carrier: T = T::ONE / carrier;
-        let neg_recip_tau:T = -inv_carrier / T::TAU;
+        let neg_recip_tau: T = -inv_carrier / T::TAU;
 
-        (
-            (self.last * neg_recip_tau + T::ONE) * carrier,
-            mag_sq,
-        )
+        ((self.last * neg_recip_tau + T::ONE) * carrier, mag_sq)
     }
 }
-
-
 
 #[derive(Debug, Clone, Default)]
 pub struct QamDiscriminatorAccurate<T> {
@@ -82,11 +76,10 @@ impl<T> Delay for QamDiscriminatorAccurate<T> {
     }
 }
 
-impl<T:Real> Filter<(T, T)> for QamDiscriminatorAccurate<T>
-{
+impl<T: Real> Filter<(T, T)> for QamDiscriminatorAccurate<T> {
     type Output = (T, T); // (angle, magnitude_squared)
 
-    fn filter(&mut self, sample: (T,T)) -> Self::Output {
+    fn filter(&mut self, sample: (T, T)) -> Self::Output {
         if !sample.0.is_finite() || !sample.1.is_finite() {
             return (T::NAN, T::NAN);
         }
@@ -113,12 +106,9 @@ impl<T:Real> Filter<(T, T)> for QamDiscriminatorAccurate<T>
 
         let carrier: T = T::FORTH;
         let inv_carrier: T = T::ONE / carrier;
-        let neg_recip_tau:T = -inv_carrier / T::TAU;
+        let neg_recip_tau: T = -inv_carrier / T::TAU;
 
-        (
-            (self.last * neg_recip_tau + T::ONE) * carrier,
-            mag_sq,
-        )
+        ((self.last * neg_recip_tau + T::ONE) * carrier, mag_sq)
     }
 }
 
@@ -126,8 +116,8 @@ impl<T:Real> Filter<(T, T)> for QamDiscriminatorAccurate<T>
 ///
 /// Output is (angle, magnitude_squared)
 #[derive(Clone, Debug)]
-pub struct Discriminator<T, FIQ=(), FOUT=()> {
-    qam: QamSplitFixed<T,FIQ>,
+pub struct Discriminator<T, FIQ = (), FOUT = ()> {
+    qam: QamSplitFixed<T, FIQ>,
     disc: QamDiscriminatorAccurate<T>,
     filter_out: FOUT,
 }
@@ -165,7 +155,8 @@ impl<T: Real, FIQ, FOUT> Discriminator<T, FIQ, FOUT> {
     }
 }
 
-impl<T, FIQ: Filter<T, Output = T>, FOUT: Filter<T, Output = T>> Filter<T> for Discriminator<T, FIQ, FOUT>
+impl<T, FIQ: Filter<T, Output = T>, FOUT: Filter<T, Output = T>> Filter<T>
+    for Discriminator<T, FIQ, FOUT>
 where
     T: Real,
 {

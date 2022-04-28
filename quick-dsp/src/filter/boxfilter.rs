@@ -21,8 +21,8 @@
 
 //! FIR Filter.
 
-use std::cmp::Ordering;
 use super::*;
+use std::cmp::Ordering;
 
 #[derive(Clone, Debug)]
 pub struct FilterBox<T>(CircularQueue<T>);
@@ -51,44 +51,43 @@ impl<T: Real> Filter<T> for FilterBox<T> {
     }
 }
 
-
-
-
 #[derive(Clone, Debug)]
-pub struct FilterMedian<T, const N: usize>([T;N]);
+pub struct FilterMedian<T, const N: usize>([T; N]);
 
-impl<T, const N: usize> Delay for FilterMedian<T,N> {
+impl<T, const N: usize> Delay for FilterMedian<T, N> {
     fn delay(&self) -> usize {
-        N/2
+        N / 2
     }
 }
 
-impl<T:Default, const N: usize> Default for FilterMedian<T,N>
-    where [T;N]: Default
+impl<T: Default, const N: usize> Default for FilterMedian<T, N>
+where
+    [T; N]: Default,
 {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<T: Default, const N: usize> FilterMedian<T,N>
-    where [T;N]: Default
+impl<T: Default, const N: usize> FilterMedian<T, N>
+where
+    [T; N]: Default,
 {
     pub fn new() -> Self {
         Default::default()
     }
 }
 
-impl<T: Default + Copy + PartialOrd, const N: usize> Filter<T> for FilterMedian<T,N> {
+impl<T: Default + Copy + PartialOrd, const N: usize> Filter<T> for FilterMedian<T, N> {
     type Output = T;
 
     fn filter(&mut self, sample: T) -> T {
         // Not super fast, but it works.
-        self.0.copy_within(0..N-1,1);
+        self.0.copy_within(0..N - 1, 1);
         self.0[0] = sample;
         let mut x = self.0.clone();
         x.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
-        x[N/2]
+        x[N / 2]
     }
 }
 

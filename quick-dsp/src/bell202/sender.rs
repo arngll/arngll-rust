@@ -19,21 +19,21 @@
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-use std::cell::Cell;
-use std::future::Future;
 use super::bell_202_encode;
-use anyhow::{Context as _, Error, format_err, Result};
+use anyhow::{format_err, Context as _, Error, Result};
+use async_timer::oneshot::{Oneshot, Timer};
 use cpal::traits::*;
 use cpal::*;
 use futures::channel::mpsc;
+use futures::task::noop_waker;
 use futures::SinkExt;
 use log::debug;
+use rand::Rng;
+use std::cell::Cell;
+use std::future::Future;
 use std::pin::Pin;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::task::{Context, Poll, Waker};
-use futures::task::noop_waker;
-use async_timer::oneshot::{Oneshot, Timer};
-use rand::Rng;
 
 pub struct Bell202Sender {
     output_audio_stream: cpal::Stream,
@@ -129,7 +129,8 @@ impl Bell202Sender {
     /// when there is a signal on the channel, true if no signal is detected.
     pub fn set_channel_clear(&self, is_channel_clear: bool) {
         debug!("CCA: is_channel_clear={:?}", is_channel_clear);
-        self.is_channel_clear.store(is_channel_clear, Ordering::Relaxed);
+        self.is_channel_clear
+            .store(is_channel_clear, Ordering::Relaxed);
         self.channel_clear_waker.replace(noop_waker()).wake()
     }
 
@@ -164,7 +165,9 @@ impl futures::sink::Sink<Vec<u8>> for Bell202Sender {
                 .poll_ready_unpin(cx)
                 .map_err(anyhow::Error::from)
         } else {
-            self.cca_backoff_timer = Some(Timer::new(std::time::Duration::from_millis(rand::thread_rng().gen_range(5..50))));
+            self.cca_backoff_timer = Some(Timer::new(std::time::Duration::from_millis(
+                rand::thread_rng().gen_range(5..50),
+            )));
             self.channel_clear_waker.replace(cx.waker().clone());
             Poll::Pending
         }
