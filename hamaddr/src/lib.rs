@@ -81,6 +81,16 @@ mod ham_addr_tests {
         let eui64: Eui64 = addr.try_into().unwrap();
         assert_eq!(eui64.to_string(), "02:46:71:6c:a0:f3:44:00");
         assert_eq!(HamAddr::try_from(eui64).unwrap(), addr);
+
+        let addr = "VI2BMARC50-X".parse::<HamAddr>().unwrap();
+        assert!(Eui64::try_from(addr).is_err());
+        assert!(Eui48::try_from(addr).is_err());
+
+        let addr = "VI2BMARC50-1".parse::<HamAddr>().unwrap();
+        assert!(Eui48::try_from(addr).is_err());
+        let eui64: Eui64 = addr.try_into().unwrap();
+        assert_eq!(eui64.to_string(), "ba:8b:05:0e:89:71:18:ae");
+        assert_eq!(HamAddr::try_from(eui64).unwrap(), addr);
     }
 
     #[test]
