@@ -11,6 +11,8 @@ quick-dsp = { path = "../quick-dsp" }
 hamaddr = { path = "../hamaddr" }
 structopt = "0.3"
 clap = { version = "3.0.14", features = ["derive"] }
+crc = "2.1"
 cpal = "0.13"
 anyhow = "1.0"
+hex = "0.4"
 futures = {version = "0.3", features=["default", "thread-pool"]}
