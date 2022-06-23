@@ -19,11 +19,18 @@
 // TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
+mod security;
+mod frame_info;
+
+use hamaddr::HamAddr;
+use std::iter::once;
+use anyhow::{bail, Error, format_err};
+
+pub use security::*;
+pub use frame_info::*;
+
+pub const VERSION_EXPERIMENTAL: u8 = 0;
+pub const VERSION_1: u8 = 1;
+
+pub const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_IBM_SDLC);
+

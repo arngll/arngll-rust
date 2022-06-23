@@ -26,6 +26,7 @@ use futures::executor::{block_on, block_on_stream};
 use futures::prelude::*;
 use hamaddr::HamAddr;
 use log::info;
+use arngll::FrameInfo;
 use quick_dsp::bell202::{Ax25Debug, Bell202Receiver, Bell202Sender};
 use quick_dsp::filter::IteratorExt as _;
 
@@ -217,6 +218,8 @@ fn main() {
         let debug = Ax25Debug(&frame);
         if debug.is_ax25() {
             info!("Received AX25: {:?}", debug);
+        } else if let Ok((frame_info, payload)) = FrameInfo::try_from_bytes(&frame) {
+            info!("Received ARNGLL: {:?} Payload: {:?}", frame_info, hex::encode(payload));
         } else {
             info!("Received: {:?}", hex::encode(frame));
         }
