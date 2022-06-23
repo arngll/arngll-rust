@@ -87,7 +87,7 @@ pub enum CrcAppendIter<T> {
 }
 
 impl<T> CrcAppendIter<T> {
-    fn new(iter: T, crc: &'static crc::Crc<u16>) -> Self {
+    pub fn new(iter: T, crc: &'static crc::Crc<u16>) -> Self {
         Self::Running(iter, crc.digest())
     }
 }
