@@ -210,8 +210,15 @@ impl HamAddr {
     }
 
     /// Returns the value of this HamAddr as an array of 8 bytes.
-    pub fn octets(&self) -> [u8; 8] {
-        self.0.clone()
+    pub fn octets(self) -> [u8; 8] {
+        self.0
+    }
+
+    /// Returns an iterator of bytes that emit the smallest
+    /// representation of HamAddr.
+    pub fn trimmed_bytes(self) -> impl Iterator<Item=u8> {
+        let len = self.len();
+        self.0.into_iter().take(len)
     }
 
     /// Returns the value of this HamAddr as a byte slice of 8 bytes.
