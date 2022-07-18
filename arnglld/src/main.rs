@@ -20,13 +20,14 @@
 // SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 use anyhow::format_err;
+//use arngll::{FrameData, NetworkId};
 use clap::Parser;
 use cpal::traits::{DeviceTrait, HostTrait};
 use futures::executor::{block_on, block_on_stream};
 use futures::prelude::*;
 use hamaddr::HamAddr;
 use log::info;
-use arngll::FrameInfo;
+use arngll::{FrameInfo, FrameType};
 use quick_dsp::bell202::{Ax25Debug, Bell202Receiver, Bell202Sender};
 use quick_dsp::filter::IteratorExt as _;
 
@@ -196,19 +197,41 @@ fn main() {
 
     const X25: crc::Crc<u16> = crc::Crc::<u16>::new(&crc::CRC_16_IBM_SDLC);
 
-    let frame_string = format!(
-        "\x01\x00de {}: TEST: This is a test frame of ASCII text.",
-        opt.callsign.unwrap()
-    );
-    let frame = frame_string.bytes().append_crc(&X25);
+    let frame = FrameInfo {
+        frame_type: FrameType::Data,
+        ack_requested: true,
+        dst_addr: "QX3NAN".parse().unwrap(),
+        src_addr: opt.callsign.unwrap(),
+        .. FrameInfo::EMPTY
+    };
+    let payload = b"Payload! TEST: This is a test frame of ASCII text.";
 
     let mut packet_sink = opt.get_packet_sink().unwrap();
 
-    println!("Sending test frame...");
+    println!("Sending test frame: {:?}", frame);
 
-    let frame = frame.collect::<Vec<_>>();
+    // Calc bytes for test frame.
+    let frame_bytes = frame
+        .bytes_with_payload(payload)
+        .append_crc(&X25)
+        .collect::<Vec<_>>();
+
     // Play the test packet.
-    block_on(packet_sink.send(frame.clone())).unwrap();
+    block_on(packet_sink.send(frame_bytes.clone())).unwrap();
+
+    let frame = frame
+        .generate_ack_frame(payload).unwrap();
+
+    println!("Sending test ack frame: {:?}", frame);
+
+    // Calc bytes for test ack frame.
+    let frame_bytes = frame
+        .bytes_with_payload(&[])
+        .append_crc(&X25)
+        .collect::<Vec<_>>();
+
+    // Play the test ack.
+    block_on(packet_sink.send(frame_bytes.clone())).unwrap();
 
     println!("Listening for packets...");
 
