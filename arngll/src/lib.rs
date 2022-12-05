@@ -21,6 +21,8 @@
 
 mod security;
 mod frame_info;
+mod mac;
+mod tun;
 
 use hamaddr::HamAddr;
 use std::iter::once;
@@ -28,6 +30,7 @@ use anyhow::{bail, Error, format_err};
 
 pub use security::*;
 pub use frame_info::*;
+pub use mac::*;
 
 pub const VERSION_EXPERIMENTAL: u8 = 0;
 pub const VERSION_1: u8 = 1;
