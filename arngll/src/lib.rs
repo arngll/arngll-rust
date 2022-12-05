@@ -22,6 +22,7 @@
 mod security;
 mod frame_info;
 mod mac;
+mod tun;
 
 use hamaddr::HamAddr;
 use std::iter::once;
